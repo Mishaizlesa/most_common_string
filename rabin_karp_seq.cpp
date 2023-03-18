@@ -1,10 +1,11 @@
+#include <Kokkos_Core.hpp>
+#include <Kokkos_Atomic.hpp>
+#include <omp.h>
 #include <cstdio>
 #include <iostream>
 #include <string>
 #include <stdlib.h>
 #include <fstream>
-#include <vector>
-#include <Kokkos_Core.hpp>
 typedef long long ll;
 ll mod=1e9+7;
 ll p=31;
@@ -16,15 +17,14 @@ std::vector<ll>pre(int len){
     }
     return powmod;
 }
+
+
 int main(int argc, char* argv[]){
     std::ifstream fin(argv[1]);
     int f=(argc>2);
     std::ofstream fout("kokkos_realization/tmp.txt");
-    ll ord[256];
-    ord['A']=1LL;
-    ord['C']=2LL;
-    ord['G']=3LL;
-    ord['T']=4LL;
+    Kokkos::Timer timer;
+    int ord[256];
     std::string data;
     fin>>data;
     ll size=data.size();
@@ -32,30 +32,29 @@ int main(int argc, char* argv[]){
     len=(len<3?3:len);
     std::vector<ll> powmod=pre(size);
     std::vector<ll>freq(size);
-    ll def_val=0;
-    Kokkos::Timer timer;
-    for(int i=0;i<len;++i) def_val=(def_val+ord[data[i]]*powmod[i])%mod;
-    ll res=0;
-    ll hash=0;
-    ll tmp_h=0;
+    std::vector<ll>dp_h(size+1);
+    dp_h[0]=0;
+    timer.reset();
     double st=timer.seconds();
-    for(int i=0;i<=len-size;++i){
+    for(int i=0;i<size;++i){
+        if (data[i]=='A') dp_h[i+1]=(dp_h[i]+powmod[i])%mod;
+        else if (data[i]=='C') dp_h[i+1]=(dp_h[i]+2LL*powmod[i])%mod;
+        else if (data[i]=='G') dp_h[i+1]=(dp_h[i]+3LL*powmod[i])%mod;
+        else  dp_h[i+1]=(dp_h[i]+4LL*powmod[i])%mod;
+    }
+    for(int i=0;i<=size-len;++i){
+        int res=0;
+        ll hash=0;
+#pragma omp simd
         for(int j=0;j<len;++j){
-            hash=(hash+ord[data[i+j]]*powmod[j])%mod;
+            if (data[i+j]=='A') hash=(hash+powmod[j])%mod;
+            else if (data[i+j]=='C') hash=(hash+2LL*powmod[j])%mod;
+            else if (data[i+j]=='G') hash=(hash+3LL*powmod[j])%mod;
+            else  hash=(hash+4LL*powmod[j])%mod;
         }
-        tmp_h=def_val;
-        if (tmp_h==hash){
-            int is_eq=1;
-            for(int k=0;k<len;++k){
-                if (data[i+k]!=data[k]){
-                    is_eq=0;break;
-                }
-            }
-            res+=is_eq;
-        }
-        for(int j=1;j<=size-len;++j){
-            tmp_h=(tmp_h-(ord[data[j-1]]*powmod[j-1])%mod+(ord[data[len+j-1]]*powmod[len+j-1])%mod+mod)%mod;
-            if (tmp_h==(hash*powmod[j])%mod){
+        for(int j=0;j<=size-len;++j){
+            ll val_h=(dp_h[j+len]+mod-dp_h[j])%mod;
+            if (val_h==(hash*powmod[j])%mod){
                 int is_eq=1;
                 for(int k=0;k<len;++k){
                     if (data[i+k]!=data[j+k]){
