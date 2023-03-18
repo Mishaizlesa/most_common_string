@@ -6,7 +6,7 @@ import os
 import sys
 inf=int(sys.argv[1])
 num=int(sys.argv[2])#количество запускаемых алгоритмов
-names=["hash3","rabin_karp","rabin_karp_vect","hash3_seq","rabin_karp_seq"]#алгоритмы
+names=["hash3","rabin_karp","rabin_karp_vect","hash3_seq","rabin_karp_seq","rabin_karp_seq_vect"]#алгоритмы
 os.environ["OMP_PLACES"]="threads"
 os.environ["OMP_PROC_BIND"]="spread"
 i=10;
