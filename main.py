@@ -40,7 +40,7 @@ while(i<inf):
         #print(name)
         #print(file)
          subprocess.run(["build/Release/"+names[j],file,"1"])
-         tm=open("tmp.txt").read()
+         tm=open("tmp.txt",'r').read()
          out.write(tm[:-1]+" ")
         #print(time)
     i+=i//10
