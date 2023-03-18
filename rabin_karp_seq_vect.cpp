@@ -19,7 +19,7 @@ std::vector<ll>pre(int len){
 int main(int argc, char* argv[]){
     std::ifstream fin(argv[1]);
     int f=(argc>2);
-    std::ofstream fout("kokkos_realization/tmp.txt");
+    std::ofstream fout("most_common_string_kokkos/tmp.txt");
     ll ord[256];
     ord['A']=1LL;
     ord['C']=2LL;

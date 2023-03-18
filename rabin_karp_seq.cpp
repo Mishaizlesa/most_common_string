@@ -22,7 +22,7 @@ std::vector<ll>pre(int len){
 int main(int argc, char* argv[]){
     std::ifstream fin(argv[1]);
     int f=(argc>2);
-    std::ofstream fout("kokkos_realization/tmp.txt");
+    std::ofstream fout("most_common_string_kokkos/tmp.txt");
     Kokkos::Timer timer;
     int ord[256];
     std::string data;

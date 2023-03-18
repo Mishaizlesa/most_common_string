@@ -10,7 +10,7 @@ typedef long long ll;
 int main(int argc, char* argv[]) {
     std::ifstream fin(argv[1]);
     int f=(argc>2);
-    std::ofstream fout("tmp.txt");
+    std::ofstream fout("most_common_string_kokkos/tmp.txt");
     Kokkos::initialize(argc, argv);{
         Kokkos::Timer timer;
         int ord[256];
