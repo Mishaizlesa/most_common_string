@@ -19,7 +19,7 @@ while(i<inf):
     file="genome_samples/s"+str(i)+".txt"
     for j in range (num):
          subprocess.run(["build/Release/"+names[j],file,"1"])
-         tm=open("tmp.txt").read()
+         tm=open("tmp.txt",'r').read()
          out.write(tm[:-1]+" ")
     i+=i//10
     out.write('\n')
