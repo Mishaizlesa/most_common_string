@@ -21,7 +21,7 @@ std::vector<ll>pre(int len){
 int main(int argc, char* argv[]){
     std::ifstream fin(argv[1]);
     int f=(argc>2);
-    std::ofstream fout("kokkos_realization/tmp.txt");
+    std::ofstream fout("tmp.txt");
     Kokkos::initialize(argc, argv);{
         Kokkos::Timer timer;
         int ord[256];
@@ -67,7 +67,9 @@ int main(int argc, char* argv[]){
             }
             freq(i)=res;
         });
-        if (f) fout<<timer.seconds()-st<<" ";
+        if (f){
+            fout<<timer.seconds()-st<<" ";
+        }
     }
     Kokkos::finalize();
     return 0;

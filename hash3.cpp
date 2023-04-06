@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
             }
             freq(i)=res;
         });
-        if (f) fout<<timer.seconds()-st<<" ";
+        if (f){ fout<<timer.seconds()-st<<" ";}
     }
     Kokkos::finalize();
     return 122;
