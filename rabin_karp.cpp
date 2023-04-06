@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <fstream>
 typedef long long ll;
-ll mod=1e9+7;
 ll p=31;
 std::vector<ll>pre(int len){
     std::vector<ll>powmod(len);
@@ -46,6 +45,7 @@ int main(int argc, char* argv[]){
         Kokkos::parallel_for( "yAx", size-len+1, KOKKOS_LAMBDA (int i) {
             int res=0;
             ll hash=0;
+            ll mod=1e9+7;
 #pragma omp simd
             for(int j=0;j<len;++j){
                 if (data[i+j]=='A') hash=(hash+powmod[j])%mod;
