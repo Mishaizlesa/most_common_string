@@ -13,17 +13,21 @@ int main(int argc, char* argv[]) {
     std::ofstream fout("tmp.txt");
     Kokkos::initialize(argc, argv);{
         Kokkos::Timer timer;
-        int ord[256];
-        std::string data;
-        fin>>data;
-        ll size=data.size();
-        int len=(data.size()>10000?1000:data.size()/10);
+        Kokkos::View<ll*, Kokkos::SharedSpace> ord("ord", 256);
+        std::string data_;
+        fin>>data_;
+        ll size=data_.size();
+        int len=(data_.size()>10000?1000:data_.size()/10);
         len=(len<3?3:len);
-        ord['A']=0;
-        ord['C']=1;
-        ord['G']=2;
-        ord['T']=3;
-        Kokkos::View<double*> freq("array", size);
+        ord['A']=0LL;
+        ord['C']=1LL;
+        ord['G']=2LL;
+        ord['T']=3LL;
+        Kokkos::View<double*, Kokkos::SharedSpace> freq("array", size);
+        Kokkos::View<char*,Kokkos::SharedSpace> data("device_string",size);
+        for(int i=0;i<size;++i){
+            data[i]=data_[i];
+        }
         timer.reset();
         double st=timer.seconds();
         Kokkos::parallel_for( "yAx", size-len+1, KOKKOS_LAMBDA (int i) {
@@ -61,7 +65,7 @@ int main(int argc, char* argv[]) {
                     break;
                 }
             }
-            freq(i)=res;
+            freq[i]=res;
         });
         if (f){ fout<<timer.seconds()-st<<" ";}
     }

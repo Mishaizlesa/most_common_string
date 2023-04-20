@@ -64,5 +64,5 @@ int main(int argc, char* argv[]) {
         freq[i]=res;
     }
     if (f) fout<<timer.seconds()-st<<" ";
-    return 122;
+    return 0;
 }
