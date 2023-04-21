@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
             //std::cout<<i<<"\n";
             int res=0;
             int sh1;
-            std::vector<int>shift(64,len-2);
+            int shift[64];for(int j=0;j<64;++j) shift[i]=len-2;
             ll hash=0;
             for(int j=2;j<=len-1;++j){
                 int ind=ord[data[i+j-2]]*16+ord[data[i+j-1]]*4+ord[data[i+j]];
@@ -65,11 +65,11 @@ int main(int argc, char* argv[]) {
                     break;
                 }
             }
-            freq[i]=res;
+            freq(i)=res;
         });
         if (f){ fout<<timer.seconds()-st<<" ";}
     }
     Kokkos::finalize();
-    return 122;
+    return 0;
 }
 

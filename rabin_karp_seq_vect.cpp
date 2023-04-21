@@ -54,7 +54,7 @@ int main(int argc, char* argv[]){
         }
         ll powlen=1;
         powmod=1;
-        for(int i=0;i<len;++i){
+        for(int k=0;k<len;++k){
             powlen*=p;
             powlen%=mod;
         }
