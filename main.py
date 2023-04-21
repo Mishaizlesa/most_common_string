@@ -7,7 +7,7 @@ import sys
 num= list(map(int, sys.argv[1:]))
 inf=num[0]
 num=num[1:]
-names=["hash3","hash3_omp","rabin_karp","rabin_karp_vect","hash3_seq","rabin_karp_seq","rabin_karp_seq_vect"]
+names=["hash3","hash3_omp","rabin_karp","rabin_karp_vect","hash3_seq","rabin_karp_seq","rabin_karp_seq_vect","naive"]
 os.environ["OMP_PLACES"]="threads"
 os.environ["OMP_PROC_BIND"]="spread"
 i=10;

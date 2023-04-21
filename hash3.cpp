@@ -9,7 +9,7 @@
 typedef long long ll;
 int main(int argc, char* argv[]) {
     std::ifstream fin(argv[1]);
-    int f=(argc>2);
+    int f=argv[2][0]-'0';
     std::ofstream fout("tmp.txt");
     Kokkos::initialize(argc, argv);{
         Kokkos::Timer timer;
@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
             //std::cout<<i<<"\n";
             int res=0;
             int sh1;
-            int shift[64];for(int j=0;j<64;++j) shift[i]=len-2;
+            int shift[64];for(int j=0;j<64;++j) shift[j]=len-2;
             ll hash=0;
             for(int j=2;j<=len-1;++j){
                 int ind=ord[data[i+j-2]]*16+ord[data[i+j-1]]*4+ord[data[i+j]];
@@ -67,7 +67,12 @@ int main(int argc, char* argv[]) {
             }
             freq(i)=res;
         });
-        if (f){ fout<<timer.seconds()-st<<" ";}
+        if (f==1){ fout<<timer.seconds()-st<<" ";}
+        if (f==2){
+            for(int i=0;i<=size-len;++i){
+                fout<<freq[i];
+            }
+        }
     }
     Kokkos::finalize();
     return 0;

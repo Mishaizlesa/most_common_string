@@ -9,7 +9,7 @@
 typedef long long ll;
 int main(int argc, char* argv[]) {
     std::ifstream fin(argv[1]);
-    int f=(argc>2);
+    int f=argv[2][0]-'0';
     std::ofstream fout("tmp.txt");
     Kokkos::Timer timer;
     int ord[256];
@@ -22,10 +22,9 @@ int main(int argc, char* argv[]) {
     ord['C']=1;
     ord['G']=2;
     ord['T']=3;
-    std::vector<double>freq(size,0);
+    std::vector<int>freq(size,0);
     timer.reset();
     double st=timer.seconds();
-    //std::cout<<i<<"\n";
 #pragma omp parallel for shared(freq)
     for(int i=0;i<=size-len;++i){
         int res=0;
@@ -63,6 +62,11 @@ int main(int argc, char* argv[]) {
         }
         freq[i]=res;
     }
-    if (f) fout<<timer.seconds()-st<<" ";
+    if (f==1) fout<<timer.seconds()-st<<" ";
+    if(f==2){
+        for(int i=0;i<=size-len;++i){
+            fout<<freq[i];
+        }
+    }
     return 0;
 }

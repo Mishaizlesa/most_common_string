@@ -10,7 +10,7 @@ ll mod=1e9+7;
 ll p=31;
 int main(int argc, char* argv[]){
     std::ifstream fin(argv[1]);
-    int f=(argc>2);
+    int f=argv[2][0]-'0';
     std::ofstream fout("tmp.txt");
     ll ord[256];
     ord['A']=1LL;
@@ -31,12 +31,12 @@ int main(int argc, char* argv[]){
         powmod*=p;
         powmod%=mod;
     }
-    ll res=0;
-    ll hash=0;
-    ll tmp_h=0;
     double st=timer.seconds();
-    powmod=1;
-    for(int i=0;i<=len-size;++i){
+    for(int i=0;i<=size-len;++i){
+        ll res=0;
+        ll hash=0;
+        ll tmp_h=0;
+        ll powmod=1;
         for(int j=0;j<len;++j){
             hash=(hash+ord[data[i+j]]*powmod)%mod;
             powmod*=p;
@@ -60,6 +60,8 @@ int main(int argc, char* argv[]){
         }
         for(int j=1;j<=size-len;++j){
             tmp_h=(tmp_h-(ord[data[j-1]]*powmod)%mod+(ord[data[len+j-1]]*powmod*powlen)%mod+mod)%mod;
+            powmod*=p;
+            powmod%=mod;
             if (tmp_h==(hash*powmod)%mod){
                 int is_eq=1;
                 for(int k=0;k<len;++k){
@@ -69,11 +71,13 @@ int main(int argc, char* argv[]){
                 }
                 res+=is_eq;
             }
-            powmod*=p;
-            powmod%=mod;
         }
         freq[i]=res;
     }
-    if (f) fout<<timer.seconds()-st<<" ";
+    if (f==1) fout<<timer.seconds()-st<<" ";
+    if (f==2){
+        for(int i=0;i<=size-len;++i)
+            fout<<freq[i];
+    }
     return 0;
 }
