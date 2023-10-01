@@ -6,75 +6,78 @@
 #include <string>
 #include <stdlib.h>
 #include <fstream>
+#include <unordered_map>
 typedef long long ll;
-const ll p=31;
-int main(int argc, char* argv[]){
-    std::ifstream fin(argv[1]);
-    int f=argv[2][0]-'0';
-    std::ofstream fout("tmp.txt");
-    Kokkos::initialize(argc, argv);{
+
+int main(int argc, char* argv[]) {
+    Kokkos::initialize(argc, argv);
+    {
+        std::ifstream fin(argv[1]);
+        int f = std::stoi(argv[2]);
+        int len = std::stoi(argv[3]);
+        std::ofstream fout("tmp.txt");
         Kokkos::Timer timer;
+
         std::string data_;
-        fin>>data_;
-        ll size=data_.size();
-        int len=(data_.size()>10000?1000:data_.size()/10);
-        len=(len<3?3:len);
-        Kokkos::View<double*,Kokkos::SharedSpace> freq("array", size);
-        Kokkos::View<ll*,Kokkos::SharedSpace> dp_h("dp_h", size+1);
-        Kokkos::View<char*,Kokkos::SharedSpace> data("device_string",size);
-        for(int i=0;i<size;++i){
-            data[i]=data_[i];
+        fin >> data_;
+        ll size = data_.size();
+
+        //std::cout << size << " " << len << std::endl;
+        Kokkos::View<double*, Kokkos::SharedSpace> freq("array", size);
+        Kokkos::View<char*, Kokkos::SharedSpace> data("device_string", size + 1);
+        for (int i = 0; i < size; ++i) {
+            data[i] = data_[i];
         }
-        //std::vector<ll>dp_h(size+1);
-        dp_h[0]=0;
+        data[size] = 'A';  // one fictive element
+        
+        std::unordered_map<char, char> mapSymbToCode = { {'A', (char)0}, {'C', (char)1}, {'G', (char)2}, {'T', (char)3} };
+        // prepare data
+        for (int i = 0; i < size; ++i) {
+            data[i] = mapSymbToCode[data[i]];
+        }
+
+
+        //std::cout << timer.seconds() - st << std::endl;
         timer.reset();
-        double st=timer.seconds();
-        ll mod=1e9+7;
-        ll powmod=1;
-        for(int i=0;i<size;++i){
-            if (data_[i]=='A') dp_h[i+1]=(dp_h[i]+powmod)%mod;
-            else if (data_[i]=='C') dp_h[i+1]=(dp_h[i]+2LL*powmod)%mod;
-            else if (data_[i]=='G') dp_h[i+1]=(dp_h[i]+3LL*powmod)%mod;
-            else  dp_h[i+1]=(dp_h[i]+4LL*powmod)%mod;
-            powmod*=p;
-            powmod%=mod;
-        }
-        Kokkos::parallel_for( "yAx", size-len+1, KOKKOS_LAMBDA (int i) {
-            int res=0;
-            ll hash=0;
-            ll mod=1e9+7;
-            ll p=31;
-            ll powmod=1;
-            for(int j=0;j<len;++j){
-                if (data[i+j]=='A') hash=(hash+powmod)%mod;
-                else if (data[i+j]=='C') hash=(hash+2LL*powmod)%mod;
-                else if (data[i+j]=='G') hash=(hash+3LL*powmod)%mod;
-                else  hash=(hash+4LL*powmod)%mod;
-                powmod*=p;
-                powmod%=mod;
+
+        Kokkos::parallel_for("yAx", size - len + 1, KOKKOS_LAMBDA(int i) {
+            //for (int i = 0; i < size - len + 1; i++) {
+            int res = 0;
+            ll hash_pattern = 0;
+            ll hash_text = 0;
+            ll mod = 1LL<<31 - 1;
+            ll p = 2;
+            ll powmod = 1;
+            for (int j = 0; j < len; ++j) {
+                hash_pattern = hash_pattern * p + data[i + j];
+                hash_text = hash_text * p + data[j];
+                powmod = powmod * p;
+		powmod%=mod;
+		hash_pattern %= mod;
+            	hash_text %= mod;
             }
-            powmod=1;
-            for(int j=0;j<=size-len;++j){
-                ll val_h=(dp_h[j+len]+mod-dp_h[j])%mod;
-                if (val_h==(hash*powmod)%mod){
-                    int is_eq=1;
-                    for(int k=0;k<len;++k){
-                        if (data[i+k]!=data[j+k]){
-                            is_eq=0;break;
+            for (int j = 0; j < size - len + 1; ++j) {
+                if (hash_text == hash_pattern) {
+                    int is_eq = 1;
+                    for (int k = 0; k < len && is_eq; ++k) {
+                        if (data[i + k] != data[j + k]) {
+			    is_eq=0;
                         }
                     }
-                    res+=is_eq;
+                    res += is_eq;
                 }
-                powmod*=p;
-                powmod%=mod;
+                hash_text = (hash_text * p - data[j] * powmod + data[j + len]) % mod;
             }
-            freq(i)=res;
+            freq[i] = res;
         });
-        if (f==1){
-            fout<<timer.seconds()-st<<" ";
-        }else if (f==2){
-            for(int i=0;i<=size-len;++i){
-                fout<<freq[i];
+        Kokkos::fence();
+	double time_finish = timer.seconds();
+        if (f == 1) {
+            fout << time_finish << " ";
+        }
+        else if (f == 2) {
+            for (int i = 0; i <= size - len; ++i) {
+                fout << freq[i];
             }
         }
     }
