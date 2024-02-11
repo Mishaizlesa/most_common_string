@@ -1,23 +1,15 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.19)
 
-option(BUILD_SAMPLES OFF)
-
-set(PROJECT_NAME most_common_string)
-project(${PROJECT_NAME})
+project(most_common_string VERSION 0.0.1 LANGUAGES C CXX)
 
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
-set(MP2_TESTS   "test_${PROJECT_NAME}")
-set(MP2_CUSTOM_PROJECT "${PROJECT_NAME}")
-set(MP2_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+option(ENABLE_TEST "Build test" OFF)
+option(ENABLE_BENCH "Build benchmarks" ON)
+option(TARGET_ARCH "Target architecture" RISCV_GENERIC)
+option(BUILD_STATIC "Build static" ON)
+option(USE_OPENMP "Build with -fopenmp" ON)
+option(BUILD_TYPE "Build type" Release)
 
 add_subdirectory(src)
-
-
-# REPORT
-message( STATUS "")
-message( STATUS "General configuration for ${PROJECT_NAME}")
-message( STATUS "======================================")
-message( STATUS "")
-message( STATUS "   Configuration: ${CMAKE_BUILD_TYPE}")
-message( STATUS "")

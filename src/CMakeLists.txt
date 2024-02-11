@@ -1,8 +1,7 @@
 set(target ${MP2_TESTS})
-
+set (CMAKE_CXX_FLAGS "-O3")
 file(GLOB hdrs "*.h*")
 file(GLOB srcs "*.cpp")
-
 
 file(GLOB samples_list RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp)
 
