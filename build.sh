@@ -7,7 +7,6 @@ USE_OPENMP="ON" # ON or OFF
 TARGET_ARCH="RISCV_VECTOR" # RISCV_GENERIC or RISCV_VECTOR
 BUILD_TYPE="Release" # Release or Debug
 BUILD_FOLDER="_build"
-
 # Path to C and C++ compilers
 C_COMPILER_PATH="$HOME/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.8.0/bin/riscv64-unknown-linux-gnu-gcc"
 CXX_COMPILER_PATH="$HOME/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.8.0/bin/riscv64-unknown-linux-gnu-g++"
@@ -28,4 +27,4 @@ cmake CMakeLists.txt \
  -DBUILD_STATIC=ON
 
 # Build project
-cmake --build _build
+cmake --build  _build
