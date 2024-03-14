@@ -3,7 +3,7 @@ add_library(BenchConfiguration INTERFACE)
 target_link_libraries(BenchConfiguration INTERFACE BaseConfiguration)
 if(BUILD_TYPE STREQUAL "Release")
     # Add custom optimization flags here:
-    target_compile_options(BenchConfiguration INTERFACE -O3)
+    target_compile_options(BenchConfiguration INTERFACE -Ofast)
 else()
     target_link_libraries(BenchConfiguration INTERFACE BaseOptConfiguration)
 endif()
