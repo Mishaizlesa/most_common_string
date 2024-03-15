@@ -2,7 +2,7 @@
 #include "common_defs.h"
 //#include "riscv_vector.h"
 //const size_t VECTOR_LENGHT = 64;
-//#define SWAR_VECORIZED
+#define SWAR_VECORIZED
 #define COMPARASION_VECTORIZED
 
 
@@ -16,7 +16,7 @@ extern void rabin_karp_SWAR(std::vector<uint32_t>& freq ,const std::string& inpu
     int len=len_;
 
     size_t VECTOR_LENGHT = vsetvlmax_e8m1();
-    size_t VECTOR_LENGHT_SWAR = vsetvlmax_e8m1();
+    size_t VECTOR_LENGHT_SWAR = vsetvlmax_e8m8();
     //std::cout<<VECTOR_LENGHT<<"\n";
     int32_t cycles = len/VECTOR_LENGHT;
     int32_t leftover = len%VECTOR_LENGHT;
@@ -59,28 +59,20 @@ extern void rabin_karp_SWAR(std::vector<uint32_t>& freq ,const std::string& inpu
         for (int j=0;j<size-len+1;j+=VECTOR_LENGHT_SWAR)
         {
 
-           vuint8m1_t vfirst_sym1 = vle8_v_u8m1(&data[j], VECTOR_LENGHT_SWAR);
-
-           vuint8m1_t vfirst_sym2 = vle8_v_u8m1(&data[j+1], VECTOR_LENGHT_SWAR);
-
-           vuint8m1_t vlast_sym1 = vle8_v_u8m1(&data[j+len-1], VECTOR_LENGHT_SWAR);
-
-           vuint8m1_t vlast_sym2 = vle8_v_u8m1(&data[j+len-2], VECTOR_LENGHT_SWAR);
-
-           vuint8m1_t eq_first1 =  vxor_vx_u8m1 (vfirst_sym1, pattern_first1, VECTOR_LENGHT_SWAR);
-
-           vuint8m1_t eq_first2 =  vxor_vx_u8m1 (vfirst_sym2, pattern_first2, VECTOR_LENGHT_SWAR);
-
-            vuint8m1_t eq_last1 =  vxor_vx_u8m1 (vlast_sym1, pattern_last1, VECTOR_LENGHT_SWAR);
-            vuint8m1_t eq_last2 =  vxor_vx_u8m1 (vlast_sym2, pattern_last2, VECTOR_LENGHT_SWAR);
-
-            vuint8m1_t veq_first = vor_vv_u8m1 (eq_first1, eq_first2, VECTOR_LENGHT_SWAR);
-            vuint8m1_t veq_last = vor_vv_u8m1 (eq_last1, eq_last2, VECTOR_LENGHT_SWAR);
-
-            vuint8m1_t veq = vor_vv_u8m1 (veq_first, veq_last, VECTOR_LENGHT_SWAR);
+           vuint8m8_t vfirst_sym1 = vle8_v_u8m8(&data[j], VECTOR_LENGHT_SWAR);
+           vuint8m8_t vfirst_sym2 = vle8_v_u8m8(&data[j+1], VECTOR_LENGHT_SWAR);
+           vuint8m8_t vlast_sym1 = vle8_v_u8m8(&data[j+len-1], VECTOR_LENGHT_SWAR);
+           vuint8m8_t vlast_sym2 = vle8_v_u8m8(&data[j+len-2], VECTOR_LENGHT_SWAR);
+           vuint8m8_t eq_first1 =  vxor_vx_u8m8 (vfirst_sym1, pattern_first1, VECTOR_LENGHT_SWAR);
+           vuint8m8_t eq_first2 =  vxor_vx_u8m8 (vfirst_sym2, pattern_first2, VECTOR_LENGHT_SWAR);
+           vuint8m8_t eq_last1 =  vxor_vx_u8m8 (vlast_sym1, pattern_last1, VECTOR_LENGHT_SWAR);
+           vuint8m8_t eq_last2 =  vxor_vx_u8m8 (vlast_sym2, pattern_last2, VECTOR_LENGHT_SWAR);
+           vuint8m8_t veq_first = vor_vv_u8m8 (eq_first1, eq_first2, VECTOR_LENGHT_SWAR);
+           vuint8m8_t veq_last = vor_vv_u8m8 (eq_last1, eq_last2, VECTOR_LENGHT_SWAR);
+           vuint8m8_t veq = vor_vv_u8m8 (veq_first, veq_last, VECTOR_LENGHT_SWAR);
 
 
-            vse8_v_u8m1 (eq, veq, VECTOR_LENGHT_SWAR);
+            vse8_v_u8m8 (eq, veq, VECTOR_LENGHT_SWAR);
 
 
             for(int t=0;t<VECTOR_LENGHT_SWAR;++t){
@@ -102,7 +94,7 @@ extern void rabin_karp_SWAR(std::vector<uint32_t>& freq ,const std::string& inpu
                     for(int k=0;k<cycles;++k){
                         vuint8m1_t vpattern_1 =  vle8_v_u8m1(pattern_1, VECTOR_LENGHT);
                         vuint8m1_t vpattern_2 =  vle8_v_u8m1(pattern_2, VECTOR_LENGHT);
- 
+
                         vbool8_t vres =  vmseq_vv_u8m1_b8(vpattern_1, vpattern_2, VECTOR_LENGHT);
  
                         uint32_t res = vmpopc_m_b8 (vres, VECTOR_LENGHT);
@@ -143,12 +135,13 @@ extern void rabin_karp_SWAR(std::vector<uint32_t>& freq ,const std::string& inpu
         uint8_t pattern_last1 = data[i+len-1];
         uint8_t pattern_last2 = data[i+len-2];
         for (int j=0;j<size-len+1;j++) {
+            size_t VECTOR_LENGHT = vsetvlmax_e8m1();
             if (data[j]==pattern_first1 && data[j+1]==pattern_first2 && data[j+len-1]==pattern_last1 && data[j+len-2]==pattern_last2){
                 uint8_t is_eq=1;
                 #ifndef COMPARASION_VECTORIZED
                     for(int k=0;k<len;++k){
                     //num_of_comp++;
-                        if (data[i+k]!=data[j+k+t]){
+                        if (data[i+k]!=data[j+k]){
                             is_eq=0;
                             break;
                         }
