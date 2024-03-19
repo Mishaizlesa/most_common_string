@@ -1,6 +1,7 @@
 #include "algorithms.h"
 #include "common_defs.h"
 typedef long long ll;
+//#define COMPARASION_VECTORIZED
 extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect) {
     std::ifstream fin(input_file);
     std::string data_;
@@ -9,7 +10,7 @@ extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, co
     int len=len_;
 
     //vsetvlmax_e8m8 ();
-    size_t VECTOR_LENGHT = vsetvlmax_e8m1();
+    size_t VECTOR_LENGHT = 32;
     uint8_t cycles = len/VECTOR_LENGHT;
     uint8_t leftover = len%VECTOR_LENGHT;
 
@@ -25,7 +26,7 @@ extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, co
     uint64_t num_of_coll=0;
     uint64_t num_of_comp=0;
 
-#pragma omp parallel for shared(freq, data) proc_bind(close) reduction(+: num_of_coll, num_of_comp)
+#pragma omp parallel for shared(freq, data) proc_bind(close)
     for(int i=0;i<=size-len;++i){
         int res=0;
         int sh1;
@@ -55,15 +56,21 @@ extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, co
                 int is_eq=1;
                 int8_t* pattern_1 = &data[i];
                 int8_t* pattern_2 = &data[j-len+1];
+            #ifndef COMPARASION_VECTORIZED
+                for(int k=0;k<len;++k){
+                    if (pattern_1[k]!=pattern_2[k]){
+                        is_eq=0;
+                    }
+                }
+            #else
                 for(int k=0;k<cycles;++k){
                     
-                    num_of_comp+=VECTOR_LENGHT;
                     vint8m1_t vpattern_1 =  vle8_v_i8m1(pattern_1, VECTOR_LENGHT);
                     vint8m1_t vpattern_2 =  vle8_v_i8m1(pattern_2, VECTOR_LENGHT);
 
                     vbool8_t vres =  vmseq_vv_i8m1_b8(vpattern_1, vpattern_2, VECTOR_LENGHT);
 
-                    uint32_t num_of_eq = vmpopc_m_b8 (vres, VECTOR_LENGHT);
+                    uint32_t num_of_eq = vmpopc_m_b8 (vres, VECTOR_LENGHT);  
 
                     if (num_of_eq!=VECTOR_LENGHT) {
                         is_eq=0;
@@ -75,7 +82,6 @@ extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, co
 
                 }
                 for(int k=0;k<leftover && is_eq;++k){
-                    num_of_comp++;
                     if (*pattern_1!=*pattern_2){
                         is_eq=0;
                         break;
@@ -83,7 +89,7 @@ extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, co
                     pattern_1++;
                     pattern_2++;
                 }
-
+            #endif
                 res+=is_eq;
                 j+=sh1;
 

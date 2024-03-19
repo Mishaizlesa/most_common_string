@@ -16,5 +16,4 @@
 #include <fstream>
 #include <vector>
 #include <unordered_map>
-#include "riscv_vector.h"
 #endif // COMMON_H

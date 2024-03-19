@@ -1,6 +1,7 @@
 #include "algorithms.h"
 #include "common_defs.h"
 //#include "riscv_vector.h"
+//#define COMPARASION_VECTORIZED
 typedef long long ll;
 extern void naive(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect){
     std::ifstream fin(input_file);
@@ -8,7 +9,7 @@ extern void naive(std::vector<uint32_t>& freq ,const std::string& input_file, co
     fin>>data_;
     ll size=data_.size();
     int len=len_;
-    size_t VECTOR_LENGHT = vsetvlmax_e8m1();
+    size_t VECTOR_LENGHT = 32;
     uint8_t cycles = len/VECTOR_LENGHT;
     uint8_t leftover = len%VECTOR_LENGHT;
 
@@ -29,6 +30,13 @@ extern void naive(std::vector<uint32_t>& freq ,const std::string& input_file, co
                 int is_eq=1;
                 int8_t* pattern_1 = &data[i];
                 int8_t* pattern_2 = &data[j];
+            #ifndef COMPARASION_VECTORIZED
+                for(int k=0;k<len;++k){
+                    if (pattern_1[k]!=pattern_2[k]){
+                        is_eq=0;
+                    }
+                }
+            #else
                 for(int k=0;k<cycles;++k){
                     
                     vint8m1_t vpattern_1 =  vle8_v_i8m1(pattern_1, VECTOR_LENGHT);
@@ -55,6 +63,7 @@ extern void naive(std::vector<uint32_t>& freq ,const std::string& input_file, co
                     pattern_1++;
                     pattern_2++;
                 }
+            #endif
                 res+=is_eq;
             }
             freq[i]=res;

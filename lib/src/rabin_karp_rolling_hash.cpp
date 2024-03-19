@@ -2,13 +2,11 @@
 #include "common_defs.h"
 
 //#define HASH_VECORIZED
-#define COMPARASION_VECTORIZED
+//#define COMPARASION_VECTORIZED
 //#include "riscv_vector.h"
 //const size_t VECTOR_LENGHT = 64;
 
 
-typedef vuint64m2_t vu64;
-typedef vuint8m8_t vu8;
 extern void rabin_karp_rolling_hash(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect) {
     std::ifstream fin(input_file);
     std::string data_;
@@ -16,9 +14,9 @@ extern void rabin_karp_rolling_hash(std::vector<uint32_t>& freq ,const std::stri
     uint64_t size=data_.size();
     int len=len_;
 
-    size_t VECTOR_LENGHT = vsetvlmax_e8m8();
+    size_t VECTOR_LENGHT = 32;
 
-    size_t VECTOR_LENGHT_HASH = vsetvlmax_e64m2();
+    size_t VECTOR_LENGHT_HASH = 4;
     //std::cout<<VECTOR_LENGHT<<"\n";
     int32_t cycles = len/VECTOR_LENGHT;
     int32_t leftover = len%VECTOR_LENGHT;

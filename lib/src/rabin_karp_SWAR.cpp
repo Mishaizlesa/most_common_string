@@ -2,11 +2,10 @@
 #include "common_defs.h"
 //#include "riscv_vector.h"
 //const size_t VECTOR_LENGHT = 64;
-#define SWAR_VECORIZED
-#define COMPARASION_VECTORIZED
+//#define SWAR_VECORIZED
+//#define COMPARASION_VECTORIZED
 
 
-typedef vuint8m1_t vu8;
 
 extern void rabin_karp_SWAR(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect) {
     std::ifstream fin(input_file);
@@ -15,8 +14,8 @@ extern void rabin_karp_SWAR(std::vector<uint32_t>& freq ,const std::string& inpu
     uint64_t size=data_.size();
     int len=len_;
 
-    size_t VECTOR_LENGHT = vsetvlmax_e8m1();
-    size_t VECTOR_LENGHT_SWAR = vsetvlmax_e8m8();
+    size_t VECTOR_LENGHT = 32;
+    size_t VECTOR_LENGHT_SWAR = 32;
     //std::cout<<VECTOR_LENGHT<<"\n";
     int32_t cycles = len/VECTOR_LENGHT;
     int32_t leftover = len%VECTOR_LENGHT;
@@ -135,7 +134,6 @@ extern void rabin_karp_SWAR(std::vector<uint32_t>& freq ,const std::string& inpu
         uint8_t pattern_last1 = data[i+len-1];
         uint8_t pattern_last2 = data[i+len-2];
         for (int j=0;j<size-len+1;j++) {
-            size_t VECTOR_LENGHT = vsetvlmax_e8m1();
             if (data[j]==pattern_first1 && data[j+1]==pattern_first2 && data[j+len-1]==pattern_last1 && data[j+len-2]==pattern_last2){
                 uint8_t is_eq=1;
                 #ifndef COMPARASION_VECTORIZED
@@ -147,6 +145,7 @@ extern void rabin_karp_SWAR(std::vector<uint32_t>& freq ,const std::string& inpu
                         }
                     }
                 #else
+                    size_t VECTOR_LENGHT = vsetvlmax_e8m1();
                     uint8_t* pattern_1 = &data[i];
                     uint8_t* pattern_2 = &data[j];
                     for(int k=0;k<cycles;++k){
