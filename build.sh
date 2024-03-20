@@ -16,15 +16,15 @@ CXX_COMPILER_PATH="$HOME/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.8.0/bin/ri
 rm -rf $BUILD_FOLDER
 
 # Confuigure project
-cmake CMakeLists.txt \
+cmake \
  -DENABLE_TEST=$ENABLE_TEST \
  -DENABLE_BENCH=$ENABLE_BENCH \
  -DTARGET_ARCH=$TARGET_ARCH \
  -B"$BUILD_FOLDER" \
  -DCMAKE_C_COMPILER=icx \
  -DCMAKE_CXX_COMPILER=icpx \
- -DBUILD_TYPE=$BUILD_TYPE \
- -DBUILD_STATIC=ON
+ -DCMAKE_LINKER=/common/software/gcc-9.5.0/bin/ld \
+ -DBUILD_TYPE=$BUILD_TYPE .\
 
 # Build project
 cmake --build  _build

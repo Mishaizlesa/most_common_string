@@ -9,7 +9,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 option(ENABLE_TEST "Build test" OFF)
 option(ENABLE_BENCH "Build benchmarks" ON)
 option(TARGET_ARCH "Target architecture" X86)
-option(BUILD_STATIC "Build static" ON)
+option(BUILD_STATIC "Build static" OFF)
 option(USE_OPENMP "Build with -qopenmp" ON)
 option(BUILD_TYPE "Build type" Release)
 
