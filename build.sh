@@ -23,7 +23,6 @@ cmake \
  -B"$BUILD_FOLDER" \
  -DCMAKE_C_COMPILER=icx \
  -DCMAKE_CXX_COMPILER=icpx \
- -DCMAKE_LINKER=/common/software/gcc-9.5.0/bin/ld \
  -DBUILD_TYPE=$BUILD_TYPE .\
 
 # Build project

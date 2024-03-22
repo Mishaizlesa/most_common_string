@@ -26,9 +26,11 @@ elseif("${TARGET_ARCH}" STREQUAL "RISCV_VECTOR")
     target_compile_options(BaseConfiguration INTERFACE -march=rv64gcv0p7)
     target_compile_definitions(BaseConfiguration INTERFACE -DRISCV_VECTOR)
 elseif("${TARGET_ARCH}" STREQUAL "X86")
-#target_compile_options(BaseConfiguration INTERFACE -march=ivybridge)
+target_compile_options(BaseConfiguration INTERFACE -mavx512bw)
+target_compile_options(BaseConfiguration INTERFACE -mavx512f)
 target_compile_options(BaseConfiguration INTERFACE -mavx2)
-#target_compile_options(BaseConfiguration INTERFACE -fsycl)
+
+target_compile_options(BaseConfiguration INTERFACE -fsycl)
 target_compile_options(BaseConfiguration INTERFACE -std=c++17)
 
 
