@@ -24,7 +24,7 @@ extern void naive(std::vector<uint32_t>& freq ,const std::string& input_file, co
 
 
     double start = omp_get_wtime();
-    #pragma omp parallel for shared(data, freq) proc_bind(close)
+    #pragma omp parallel for shared(data, freq) proc_bind(spread)
         for (int i=0;i<size-len+1;++i){
             uint32_t res=0;
             for(int j=0;j<size-len+1;++j){
@@ -43,7 +43,7 @@ extern void naive(std::vector<uint32_t>& freq ,const std::string& input_file, co
                     __m256i vpattern_1 = _mm256_load_si256((__m256i *)pattern_1);                    
                     __m256i vpattern_2 = _mm256_load_si256((__m256i *)pattern_2);
                     __m256i pcmp = _mm256_cmpeq_epi8(vpattern_1, vpattern_2); 
-                    uint8_t bitmask = _mm256_movemask_epi8(pcmp);
+                    uint32_t bitmask = _mm256_movemask_epi8(pcmp);
                     if (bitmask != 0xffffffffU) {
                         is_eq=0;
                         break;

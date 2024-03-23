@@ -1,8 +1,8 @@
 #include "algorithms.h"
 #include "common_defs.h"
-
+#include <immintrin.h>
 //#define HASH_VECORIZED
-//#define COMPARASION_VECTORIZED
+#define COMPARASION_VECTORIZED
 //#include "riscv_vector.h"
 //const size_t VECTOR_LENGHT = 64;
 
@@ -71,37 +71,28 @@ extern void rabin_karp_rolling_hash(std::vector<uint32_t>& freq ,const std::stri
                     uint8_t* pattern_2 = &data[j+(size*t)/VECTOR_LENGHT_HASH];
     #ifdef COMPARASION_VECTORIZED
                     for(int k=0;k<cycles;++k){
-
-
-                        vu8 vpattern_1 =  vle8_v_u8m8(pattern_1, VECTOR_LENGHT);
-                        vu8 vpattern_2 =  vle8_v_u8m8(pattern_2, VECTOR_LENGHT);
-
-
-                        vbool1_t vres =  vmseq_vv_u8m8_b1(vpattern_1, vpattern_2, VECTOR_LENGHT);
-
-
-                        uint32_t eq_res = vmpopc_m_b1 (vres, VECTOR_LENGHT);
-
-            
-
-                        if (eq_res!=VECTOR_LENGHT) {
-                            is_eq=0;
-                            break;
-                        }
-
-                        pattern_1+=VECTOR_LENGHT;
-                        pattern_2+=VECTOR_LENGHT;
-
-
+                    
+                    __m256i vpattern_1 = _mm256_load_si256((__m256i *)pattern_1);                    
+                    __m256i vpattern_2 = _mm256_load_si256((__m256i *)pattern_2);
+                    __m256i pcmp = _mm256_cmpeq_epi8(vpattern_1, vpattern_2); 
+                    uint32_t bitmask = _mm256_movemask_epi8(pcmp);
+                    if (bitmask != 0xffffffffU) {
+                        is_eq=0;
+                        break;
                     }
-                    for(int k=0;k<leftover && is_eq;++k){
-                        if (*pattern_1!=*pattern_2){
-                            is_eq=0;
-                            break;  
-                        }
-                        pattern_1++;
-                        pattern_2++;
+
+                    pattern_1+=VECTOR_LENGHT;
+                    pattern_2+=VECTOR_LENGHT;
+
+                }
+                for(int k=0;k<leftover && is_eq;++k){
+                    if (*pattern_1!=*pattern_2){
+                        is_eq=0;
+                        break;
                     }
+                    pattern_1++;
+                    pattern_2++;
+                }
     #else
                     for(int k=0;k<len;++k){
                         if (pattern_1[k]!=pattern_2[k]){
@@ -148,29 +139,24 @@ extern void rabin_karp_rolling_hash(std::vector<uint32_t>& freq ,const std::stri
                 uint8_t* pattern_2 = &data[j];
             #ifdef COMPARASION_VECTORIZED
                 for(int k=0;k<cycles;++k){
-                    vu8 vpattern_1 =  vle8_v_u8m8(pattern_1, VECTOR_LENGHT);
-                    vu8 vpattern_2 =  vle8_v_u8m8(pattern_2, VECTOR_LENGHT);
-
-
-                    vbool1_t vres =  vmseq_vv_u8m8_b1(vpattern_1, vpattern_2, VECTOR_LENGHT);
-
-
-                    uint32_t eq_res = vmpopc_m_b1 (vres, VECTOR_LENGHT);
-
-        
-
-                    if (eq_res!=VECTOR_LENGHT) {
+                    
+                    __m256i vpattern_1 = _mm256_load_si256((__m256i *)pattern_1);                    
+                    __m256i vpattern_2 = _mm256_load_si256((__m256i *)pattern_2);
+                    __m256i pcmp = _mm256_cmpeq_epi8(vpattern_1, vpattern_2); 
+                    uint32_t bitmask = _mm256_movemask_epi8(pcmp);
+                    if (bitmask != 0xffffffffU) {
                         is_eq=0;
                         break;
                     }
 
                     pattern_1+=VECTOR_LENGHT;
                     pattern_2+=VECTOR_LENGHT;
+
                 }
                 for(int k=0;k<leftover && is_eq;++k){
                     if (*pattern_1!=*pattern_2){
                         is_eq=0;
-                        break;  
+                        break;
                     }
                     pattern_1++;
                     pattern_2++;

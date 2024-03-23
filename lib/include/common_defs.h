@@ -13,6 +13,7 @@
 #include <iostream>
 #include <string>
 #include <stdlib.h>
+#include <immintrin.h>
 #include <fstream>
 #include <vector>
 #include <unordered_map>

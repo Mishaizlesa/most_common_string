@@ -1,7 +1,8 @@
 #include "algorithms.h"
 #include "common_defs.h"
 typedef long long ll;
-//#define COMPARASION_VECTORIZED
+#include <immintrin.h>
+#define COMPARASION_VECTORIZED
 extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect) {
     std::ifstream fin(input_file);
     std::string data_;
@@ -26,7 +27,7 @@ extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, co
     uint64_t num_of_coll=0;
     uint64_t num_of_comp=0;
 
-#pragma omp parallel for shared(freq, data) proc_bind(close)
+#pragma omp parallel for shared(freq, data) proc_bind(spread)
     for(int i=0;i<=size-len;++i){
         int res=0;
         int sh1;
@@ -52,7 +53,6 @@ extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, co
                 j+=sh;
             } 
             if (j<size){
-                num_of_coll++;
                 int is_eq=1;
                 int8_t* pattern_1 = &data[i];
                 int8_t* pattern_2 = &data[j-len+1];
@@ -65,14 +65,11 @@ extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, co
             #else
                 for(int k=0;k<cycles;++k){
                     
-                    vint8m1_t vpattern_1 =  vle8_v_i8m1(pattern_1, VECTOR_LENGHT);
-                    vint8m1_t vpattern_2 =  vle8_v_i8m1(pattern_2, VECTOR_LENGHT);
-
-                    vbool8_t vres =  vmseq_vv_i8m1_b8(vpattern_1, vpattern_2, VECTOR_LENGHT);
-
-                    uint32_t num_of_eq = vmpopc_m_b8 (vres, VECTOR_LENGHT);  
-
-                    if (num_of_eq!=VECTOR_LENGHT) {
+                    __m256i vpattern_1 = _mm256_load_si256((__m256i *)pattern_1);                    
+                    __m256i vpattern_2 = _mm256_load_si256((__m256i *)pattern_2);
+                    __m256i pcmp = _mm256_cmpeq_epi8(vpattern_1, vpattern_2); 
+                    uint32_t bitmask = _mm256_movemask_epi8(pcmp);
+                    if (bitmask != 0xffffffffU) {
                         is_eq=0;
                         break;
                     }
@@ -89,6 +86,7 @@ extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, co
                     pattern_1++;
                     pattern_2++;
                 }
+
             #endif
                 res+=is_eq;
                 j+=sh1;
@@ -101,8 +99,6 @@ extern void hash3(std::vector<uint32_t>& freq ,const std::string& input_file, co
     }
     double stop = omp_get_wtime();
     if (perf_collect) {
-        std::cout<<"number of collisions = "<<num_of_coll<<"\n";
-        std::cout<<"number of comparasion = "<<num_of_comp<<"\n";
         std::cout<<freq.size()<<" "<<len<<" "<< stop - start << "\n";
     }
     return;
