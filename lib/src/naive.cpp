@@ -10,7 +10,7 @@ extern void naive(std::vector<uint32_t>& freq ,const std::string& input_file, co
     fin>>data_;
     ll size=data_.size();
     int len=len_;
-    size_t VECTOR_LENGHT = 64;
+    size_t VECTOR_LENGHT = 16;
     uint8_t cycles = len/VECTOR_LENGHT;
     uint8_t leftover = len%VECTOR_LENGHT;
 
@@ -40,11 +40,11 @@ extern void naive(std::vector<uint32_t>& freq ,const std::string& input_file, co
             #else
                 for(int k=0;k<cycles;++k){
                     
-                    __m512i vpattern_1 = _mm512_loadu_epi8 ((void*) pattern_1);                
-                    __m512i vpattern_2 = _mm512_loadu_epi8 ((void*) pattern_2);
-                    __mmask64 pcmp _mm512_cmpeq_epu8_mask (vpattern_1, vpattern_2);
-                    unsigned __int64 bitmask =  _cvtmask64_u64 (pcmp);
-                    if (bitmask != 0xffffffffffffffffU) {
+                    __m128i vpattern_1 =  _mm_loadu_epi8 ((void*) pattern_1);                
+                    __m128i vpattern_2 =  _mm_loadu_epi8 ((void*) pattern_2);
+                    __mmask16 pcmp =  _mm_cmpeq_epu8_mask  (vpattern_1, vpattern_2);
+                    unsigned bitmask =  _cvtmask16_u32 (pcmp);
+                    if (bitmask != 0xffffU) {
                         is_eq=0;
                         break;
                     }

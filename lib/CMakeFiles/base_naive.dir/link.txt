@@ -1,0 +1,2 @@
+/common/software/gcc-9.5.0/bin/ar qc libbase_naive.a CMakeFiles/base_naive.dir/src/base_naive.cpp.o CMakeFiles/naive.dir/src/naive.cpp.o CMakeFiles/hash3.dir/src/hash3.cpp.o CMakeFiles/rabin_karp_rolling_hash.dir/src/rabin_karp_rolling_hash.cpp.o CMakeFiles/rabin_karp_SWAR.dir/src/rabin_karp_SWAR.cpp.o
+/common/software/gcc-9.5.0/bin/ranlib libbase_naive.a
