@@ -8,5 +8,9 @@ extern void naive(std::vector<uint32_t>& freq ,const std::string& input_file, co
 extern void base_naive(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_);
 extern void rabin_karp_rolling_hash(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect);
 extern void rabin_karp_SWAR(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect) ;
+extern void hash3_scalar(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect);
+extern void naive_scalar(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect);
+extern void rabin_karp_rolling_hash_scalar(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect);
+extern void rabin_karp_SWAR_scalar(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect) ;
 
 #endif // ALGORITHMS_H

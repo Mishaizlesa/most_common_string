@@ -6,7 +6,7 @@ int main() {
 
     for (int i=4;i<=1024;i*=2){
 
-        naive(freq, path, i, true);
+       naive_scalar(freq, path, i, true);
     }
 
     return 0;

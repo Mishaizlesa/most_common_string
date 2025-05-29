@@ -30,7 +30,11 @@ endif()
 #
 # Object libraries with separate compiler keys
 #
-add_obj_lib("naive" CommonConfiguration)
-add_obj_lib("hash3" CommonConfiguration)
-add_obj_lib("rabin_karp_rolling_hash" CommonConfiguration)
-add_obj_lib("rabin_karp_SWAR" CommonConfiguration)
+#add_obj_lib("naive" CommonConfiguration)
+#add_obj_lib("hash3" CommonConfiguration)
+#add_obj_lib("rabin_karp_rolling_hash" CommonConfiguration)
+#add_obj_lib("rabin_karp_SWAR" CommonConfiguration)
+#add_obj_lib("naive_scalar" CommonConfiguration)
+#add_obj_lib("hash3_scalar" CommonConfiguration)
+#add_obj_lib("rabin_karp_rolling_hash_scalar" CommonConfiguration)
+add_obj_lib("rabin_karp_SWAR_scalar" CommonConfiguration)

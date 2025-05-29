@@ -6,7 +6,7 @@ int main() {
 
     for (int i=128;i<=128;i*=2){
 
-        rabin_karp_SWAR(freq, path, i, true);
+       rabin_karp_rolling_hash_scalar(freq, path, i, true);
     }
 
     return 0;

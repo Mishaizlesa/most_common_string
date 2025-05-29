@@ -1,5 +1,7 @@
 # Custom configuration for benchmarks
 add_library(BenchConfiguration INTERFACE)
+set(CMAKE_EXE_LINKER_FLAGS "-static ${CMAKE_EXE_LINKER_FLAGS}")
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a)  # Искать только статические библиотеки
 target_link_libraries(BenchConfiguration INTERFACE BaseConfiguration)
 if(BUILD_TYPE STREQUAL "Release")
     # Add custom optimization flags here:
@@ -20,11 +22,19 @@ function(add_perf_test SOURCE)
     )
 
     target_link_libraries(${NAME}
-    PUBLIC
-        base_naive
-    PRIVATE
-        BenchConfiguration
+        PUBLIC
+            base_naive
+            Kokkos::kokkos
+        PRIVATE
+            BenchConfiguration
+            ${CMAKE_DL_LIBS}
+            pthread
     )
+    
+    # Для статической линковки
+    
+        target_link_options(${NAME} PRIVATE -static)
+    
 endfunction()
 
 file(GLOB SOURCES "*/*.cpp")

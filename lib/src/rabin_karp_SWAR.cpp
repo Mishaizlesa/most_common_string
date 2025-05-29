@@ -1,193 +1,130 @@
 #include "algorithms.h"
 #include "common_defs.h"
-//#include "riscv_vector.h"
-//const size_t VECTOR_LENGHT = 64;
-#define SWAR_VECORIZED
-#define COMPARASION_VECTORIZED
+#include <Kokkos_Core.hpp>
+#include <Kokkos_SIMD.hpp>
+#include <unordered_map>
 
+extern void rabin_karp_SWAR(std::vector<uint32_t>& freq, const std::string& input_file,
+                          const uint32_t len_, const bool perf_collect) {
+    Kokkos::initialize();
+    {
+        Kokkos::Timer timer;
 
-typedef vuint8m1_t vu8;
-
-extern void rabin_karp_SWAR(std::vector<uint32_t>& freq ,const std::string& input_file, const uint32_t len_, const bool perf_collect) {
     std::ifstream fin(input_file);
     std::string data_;
-    fin>>data_;
-    uint64_t size=data_.size();
-    int len=len_;
+    fin >> data_;
+    const uint64_t size = data_.size();
+    const uint32_t len = len_;
 
-    size_t VECTOR_LENGHT = vsetvlmax_e8m1();
-    size_t VECTOR_LENGHT_SWAR = vsetvlmax_e8m8();
-    //std::cout<<VECTOR_LENGHT<<"\n";
-    int32_t cycles = len/VECTOR_LENGHT;
-    int32_t leftover = len%VECTOR_LENGHT;
+    using simd_type = Kokkos::Experimental::simd<uint8_t>;
+    constexpr int vector_width = simd_type::size();
+    constexpr int swar_width = vector_width;
 
-   
-
-    //std::cout << size << " " << len << std::endl;
-    freq.resize(size,0);
-    uint8_t data[size+VECTOR_LENGHT+len+10];
-    for(int i=size;i<=size+VECTOR_LENGHT+len;++i) data[i]=5;
-    std::unordered_map<int8_t, int8_t> mapSymbToCode = { {'A', (int8_t)0}, {'C', (int8_t)1}, {'G', (int8_t)2}, {'T', (int8_t)3} };
-    // prepare data
-    for (int i = 0; i < size; ++i) {
-        data[i] = mapSymbToCode[data_[i]];
-    }
- 
-
-
-
-    double start = omp_get_wtime();
-
-    uint32_t num_of_coll=0;
-    uint32_t num_of_comp=0;
-    //std::cout << timer.seconds() - st << std::endl;
-#ifdef SWAR_VECORIZED
-#pragma omp parallel shared(data, freq) proc_bind(close) //reduction(+: num_of_coll, num_of_comp)
-{
-
-    uint8_t eq[VECTOR_LENGHT_SWAR];
-
-    #pragma omp for
-    for (int i=0;i<size-len+1;i++){
+    // Создаем копию map для использования в device коде
+    const std::unordered_map<int8_t, int8_t> host_map = {
+        {'A', 0}, {'C', 1}, {'G', 2}, {'T', 3}
+    };
     
+    Kokkos::View<int8_t[128]> mapSymbToCode("mapSymbToCode");
+    Kokkos::parallel_for("init_map", 128, KOKKOS_LAMBDA(int i) {
+        mapSymbToCode(i) = -1; // Инициализация
+    });
+    
+    // Копируем значения из std::map в View
+    for(const auto& pair : host_map) {
+        mapSymbToCode(pair.first) = pair.second;
+    }
 
-        uint32_t res=0;
-        uint8_t pattern_first1 = data[i];
-        uint8_t pattern_first2 = data[i+1];
-        uint8_t pattern_last1 = data[i+len-1];
-        uint8_t pattern_last2 = data[i+len-2];
-        for (int j=0;j<size-len+1;j+=VECTOR_LENGHT_SWAR)
-        {
+    Kokkos::View<uint8_t*> data("data", size + len + vector_width);
+    Kokkos::View<uint32_t*> freq_k("freq", size);
 
-           vuint8m8_t vfirst_sym1 = vle8_v_u8m8(&data[j], VECTOR_LENGHT_SWAR);
-           vuint8m8_t vfirst_sym2 = vle8_v_u8m8(&data[j+1], VECTOR_LENGHT_SWAR);
-           vuint8m8_t vlast_sym1 = vle8_v_u8m8(&data[j+len-1], VECTOR_LENGHT_SWAR);
-           vuint8m8_t vlast_sym2 = vle8_v_u8m8(&data[j+len-2], VECTOR_LENGHT_SWAR);
-           vuint8m8_t eq_first1 =  vxor_vx_u8m8 (vfirst_sym1, pattern_first1, VECTOR_LENGHT_SWAR);
-           vuint8m8_t eq_first2 =  vxor_vx_u8m8 (vfirst_sym2, pattern_first2, VECTOR_LENGHT_SWAR);
-           vuint8m8_t eq_last1 =  vxor_vx_u8m8 (vlast_sym1, pattern_last1, VECTOR_LENGHT_SWAR);
-           vuint8m8_t eq_last2 =  vxor_vx_u8m8 (vlast_sym2, pattern_last2, VECTOR_LENGHT_SWAR);
-           vuint8m8_t veq_first = vor_vv_u8m8 (eq_first1, eq_first2, VECTOR_LENGHT_SWAR);
-           vuint8m8_t veq_last = vor_vv_u8m8 (eq_last1, eq_last2, VECTOR_LENGHT_SWAR);
-           vuint8m8_t veq = vor_vv_u8m8 (veq_first, veq_last, VECTOR_LENGHT_SWAR);
+    // Инициализация данных
+    Kokkos::parallel_for("init_data", size, KOKKOS_LAMBDA(int i) {
+        data(i) = mapSymbToCode(data_[i]);
+    });
 
+    int num_of_iter_search = (size - len + 1) / swar_width;
+    int leftover_search = (size - len + 1) % swar_width;
 
-            vse8_v_u8m8 (eq, veq, VECTOR_LENGHT_SWAR);
+    int num_of_iter_comp = (len) / swar_width;
+    int leftover_comp = (len) % swar_width;
 
-
-            for(int t=0;t<VECTOR_LENGHT_SWAR;++t){
-
-                if (eq[t]==0) {
-                    uint8_t is_eq =1;
-                    //num_of_coll++;
-                #ifndef COMPARASION_VECTORIZED
-                    for(int k=0;k<len;++k){
-                    //num_of_comp++;
-                        if (data[i+k]!=data[j+k+t]){
-                            is_eq=0;
-                            break;
+    timer.reset();
+    Kokkos::parallel_for("rabin_karp", Kokkos::RangePolicy<>(0, size-len+1),
+    KOKKOS_LAMBDA(const int i) {
+        uint32_t res = 0;
+        uint8_t p1 = data(i);
+        uint8_t p2 = data(i+1);
+        uint8_t pn1 = data(i+len-1);
+        uint8_t pn2 = data(i+len-2);
+        int f = 1;
+        for(uint64_t j = 0, it = 0; it < num_of_iter_search; j += swar_width, it++) {
+            
+            simd_type v1, v2, vn1, vn2;
+                
+            v1.copy_from(&data(j), Kokkos::Experimental::element_aligned_tag());
+            v2.copy_from(&data(j + 1), Kokkos::Experimental::element_aligned_tag());
+            vn1.copy_from(&data(j + len - 1), Kokkos::Experimental::element_aligned_tag());
+            vn2.copy_from(&data(j + len - 2), Kokkos::Experimental::element_aligned_tag());
+            auto mask = (v1 == p1) && (v2 == p2) && (vn1 == pn1) && (vn2 == pn2); 
+            
+            // Проверка полного совпадения
+                for(uint64_t k = 0; k < swar_width; ++k) {
+                    bool is_eq = 0;
+                    if (mask[k]) {
+                        is_eq = 1;
+                        for (uint32_t it2 = 0, t = 0; it2 < num_of_iter_comp && is_eq; it2++, t += swar_width){
+                            v1.copy_from(&data(i + swar_width * t), Kokkos::Experimental::element_aligned_tag());
+                            v2.copy_from(&data(j + k + swar_width * t), Kokkos::Experimental::element_aligned_tag());
+                            is_eq = Kokkos::Experimental::all_of(v1==v2);
+                        }
+                        for (int t = 0; t < leftover_comp &&  is_eq; ++t)
+                        {
+                            if (data(i + swar_width * num_of_iter_comp + t) != data(j + k + swar_width * num_of_iter_comp + t)){
+                                is_eq = 0;
+                                break;
+                            }
                         }
                     }
-                #else
-                    uint8_t* pattern_1 = &data[i];
-                    uint8_t* pattern_2 = &data[j+t];
-                    for(int k=0;k<cycles;++k){
-                        vuint8m1_t vpattern_1 =  vle8_v_u8m1(pattern_1, VECTOR_LENGHT);
-                        vuint8m1_t vpattern_2 =  vle8_v_u8m1(pattern_2, VECTOR_LENGHT);
-
-                        vbool8_t vres =  vmseq_vv_u8m1_b8(vpattern_1, vpattern_2, VECTOR_LENGHT);
- 
-                        uint32_t res = vmpopc_m_b8 (vres, VECTOR_LENGHT);
- 
-                        if (res!=VECTOR_LENGHT) {
-                            is_eq=0;
-                            break;
-                        }
- 
-                        pattern_1+=VECTOR_LENGHT;
-                        pattern_2+=VECTOR_LENGHT;
- 
- 
-                    }
- 
-                    for(int k=0;k<leftover && is_eq;++k){
-                        if (*pattern_1!=*pattern_2){
-                            is_eq=0;
-                            break;
-                        }
-                        pattern_1++;
-                        pattern_2++;
-                    }
-                #endif
-                    res+=is_eq;
+                    res += is_eq;
                 }
+        }
+        for (int j = 0; j < leftover_search; ++j)
+        {
+            int ptr = num_of_iter_search * swar_width + j;
+            if (data[ptr] == p1 && data[ptr + 1] == p2 && data[ptr + len - 1] == pn1 && data[ptr + len - 2] == pn2)
+            {
+                simd_type v1, v2;
+                bool is_eq = 1;
+                is_eq = 1;
+                for (uint32_t it2 = 0, t = 0; it2 < num_of_iter_comp && is_eq; it2++, t += swar_width){
+                    v1.copy_from(&data(i + swar_width * t), Kokkos::Experimental::element_aligned_tag());
+                    v2.copy_from(&data(ptr + swar_width * t), Kokkos::Experimental::element_aligned_tag());
+                    is_eq = Kokkos::Experimental::all_of(v1==v2);
+                }
+                for (int t = 0; t < leftover_comp; ++t)
+                {
+                    if (data(i + swar_width * num_of_iter_comp + t) != data(ptr + swar_width * num_of_iter_comp + t)){
+                        is_eq = 0;
+                        break;
+                    }
+                }
+                res += is_eq;
             }
         }
-        freq[i] = res;
-    }
-}
-#else
-#pragma omp parallel for shared(data, freq) proc_bind(close)
-    for (int i=0;i<size-len+1;i++){
-        uint32_t res=0;
-        uint8_t pattern_first1 = data[i];
-        uint8_t pattern_first2 = data[i+1];
-        uint8_t pattern_last1 = data[i+len-1];
-        uint8_t pattern_last2 = data[i+len-2];
-        for (int j=0;j<size-len+1;j++) {
-            size_t VECTOR_LENGHT = vsetvlmax_e8m1();
-            if (data[j]==pattern_first1 && data[j+1]==pattern_first2 && data[j+len-1]==pattern_last1 && data[j+len-2]==pattern_last2){
-                uint8_t is_eq=1;
-                #ifndef COMPARASION_VECTORIZED
-                    for(int k=0;k<len;++k){
-                    //num_of_comp++;
-                        if (data[i+k]!=data[j+k]){
-                            is_eq=0;
-                            break;
-                        }
-                    }
-                #else
-                    uint8_t* pattern_1 = &data[i];
-                    uint8_t* pattern_2 = &data[j];
-                    for(int k=0;k<cycles;++k){
-                        vuint8m1_t vpattern_1 =  vle8_v_u8m1(pattern_1, VECTOR_LENGHT);
-                        vuint8m1_t vpattern_2 =  vle8_v_u8m1(pattern_2, VECTOR_LENGHT);
- 
-                        vbool8_t vres =  vmseq_vv_u8m1_b8(vpattern_1, vpattern_2, VECTOR_LENGHT);
- 
-                        uint32_t res = vmpopc_m_b8 (vres, VECTOR_LENGHT);
- 
-                        if (res!=VECTOR_LENGHT) {
-                            is_eq=0;
-                            break;
-                        }
- 
-                        pattern_1+=VECTOR_LENGHT;
-                        pattern_2+=VECTOR_LENGHT;
- 
- 
-                    }
-                    for(int k=0;k<leftover && is_eq;++k){
-                        if (*pattern_1!=*pattern_2){
-                            is_eq=0;
-                            break;
-                        }
-                        pattern_1++;
-                        pattern_2++;
-                    }
-                #endif
-                    res+=is_eq;
-            }
-        }
-        freq[i] = res;
-    }
-#endif
-    double stop = omp_get_wtime();
-    if (perf_collect) {
-        std::cout<<"number of collisions = "<<num_of_coll<<"\n";
-        std::cout<<"number of comparasion = "<<num_of_comp<<"\n";
-        std::cout<<freq.size()<<" "<<len<<" "<< stop - start << "\n";
-    }
-    return;
-}
+        
+        freq_k(i) = res;
+    });
+    Kokkos::fence();
+    double stop = timer.seconds();
 
+    // Копирование результатов
+    freq.resize(size);
+    Kokkos::deep_copy(Kokkos::View<uint32_t*, Kokkos::HostSpace>(freq.data(), size), freq_k);
+
+    if (perf_collect) {
+        std::cout << freq.size() << " " << len << " " << stop << "\n";
+    }
+    }
+    Kokkos::finalize();
+}

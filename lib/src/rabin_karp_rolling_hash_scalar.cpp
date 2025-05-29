@@ -6,7 +6,7 @@
 typedef Kokkos::Experimental::native_simd<uint64_t> vu64;
 typedef Kokkos::Experimental::native_simd<uint8_t> vu8;
 
-extern void rabin_karp_rolling_hash(std::vector<uint32_t>& freq, 
+extern void rabin_karp_rolling_hash_scalar(std::vector<uint32_t>& freq, 
                                   const std::string& input_file, 
                                   const uint32_t len_, 
                                   const bool perf_collect) {
@@ -66,9 +66,19 @@ extern void rabin_karp_rolling_hash(std::vector<uint32_t>& freq,
         for (int j = 0; j < size - len + 1; ++j) {
             if (hash_text == hash_pattern) {
                 int is_eq = 1;
+
+
+                for(int k = 0; k < len; ++k)
+                {
+                    if (data[j + k] != data[i + k])
+                    {
+                        is_eq = 0;
+                        break;
+                    }
+                }
                 
                 // Vectorized comparison
-                for (int k = 0; k < cycles && is_eq; ++k) {
+                /*for (int k = 0; k < cycles && is_eq; ++k) {
                     vu8 vpattern_1(&data[i + k * VECTOR_LENGTH], Kokkos::Experimental::element_aligned_tag{});
                     vu8 vpattern_2(&data[j + k * VECTOR_LENGTH], Kokkos::Experimental::element_aligned_tag{});
                     
@@ -85,7 +95,7 @@ extern void rabin_karp_rolling_hash(std::vector<uint32_t>& freq,
                         is_eq = 0;
                         break;
                     }
-                }
+                }*/
                 
                 res += is_eq;
             }
