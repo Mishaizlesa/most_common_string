@@ -14,6 +14,7 @@ PUBLIC
     GTest::gtest
     GTest::gtest_main
     base_naive
+    -fsycl
 PRIVATE
     CommonConfiguration
 )

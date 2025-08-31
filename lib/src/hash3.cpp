@@ -1,131 +1,82 @@
-#include "algorithms.h"
-#include "common_defs.h"
-#include <Kokkos_Core.hpp>
-#include <Kokkos_SIMD.hpp>
+#include <sycl/sycl.hpp>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <chrono>
+#include <unordered_map>
 
-typedef long long ll;
+extern "C" void hash3(std::vector<uint32_t>& freq, const std::string& input_file, 
+                                  const uint32_t len_, const bool perf_collect) {
+  std::ifstream fin(input_file);
+  std::string data_str;
+  fin >> data_str;
+  size_t N = data_str.size();
+  size_t M = N - len_ + 1;
+  freq.resize(N, 0);
 
-extern void hash3(std::vector<uint32_t>& freq, const std::string& input_file, 
-                 const uint32_t len_, const bool perf_collect) {
-    // Initialize Kokkos
-    Kokkos::initialize();
-    {
-        Kokkos::Timer timer;
-    std::ifstream fin(input_file);
-    std::string data_;
-    fin >> data_;
-    ll size = data_.size();
-    int len = len_;
+  std::vector<int8_t> data(N);
+  std::unordered_map<char, int8_t> symbols_code = {{'A', 0}, {'C', 1}, {'G', 2}, {'T', 3}};
+  for (size_t i = 0; i < N; ++i) {
+    data[i] = symbols_code[data_str[i]];
+  }
 
-    std::unordered_map<int8_t, int8_t> symbols_code {
-        {'A', uint8_t(0)}, {'C', uint8_t(1)}, {'G', uint8_t(2)}, {'T', uint8_t(3)}
-    };
+  auto start = std::chrono::high_resolution_clock::now();
 
-    // Convert data to Kokkos view
-    Kokkos::View<int8_t*> data("data", size);
-    for(int i = 0; i < size; ++i) {
-        data(i) = symbols_code[data_[i]];
-    }
+  sycl::queue q{sycl::cpu_selector_v};
 
-    freq.resize(size);
-    Kokkos::View<uint32_t*> freq_view("freq_view", size);
+  sycl::buffer<int8_t> data_buf(data.data(), N);
+  sycl::buffer<uint32_t> freq_buf(freq.data(), N);
 
-    // Create atomic counters for performance metrics
-    Kokkos::View<uint64_t*> num_of_coll("num_of_coll", 1);
-    Kokkos::View<uint64_t*> num_of_comp("num_of_comp", 1);
+  q.submit([&](sycl::handler& h) {
+    auto data_acc = data_buf.get_access<sycl::access::mode::read>(h);
+    auto freq_acc = freq_buf.get_access<sycl::access::mode::write>(h);
 
-    // Main parallel loop
-    timer.reset();
-    Kokkos::parallel_for("hash3_main", Kokkos::RangePolicy<>(0, size - len + 1),
-        KOKKOS_LAMBDA(const int i) {
-            int res = 0;
-            int sh1;
-            int32_t shift[64];
-            
-            // Initialize shift values
-            for(int k = 0; k < 64; ++k) {
-                shift[k] = len - 2;
-            }
-
-            // Precompute shift values
-            for(int j = 2; j < len - 1; ++j) {
-                int ind = data(i + j - 2) * 16 + data(i + j - 1) * 4 + data(i + j);
-                shift[ind] = len - 1 - j;
-            }
-
-            int ind = data(i + len - 3) * 16 + data(i + len - 2) * 4 + data(i + len - 1);
-            sh1 = shift[ind];
-            shift[ind] = 0;
-            
-            if (!sh1) sh1 = 1;
-
-            int j = len - 1;
-
-            while(true) {
-                int sh = 1;
-                while (sh && j < size) {
-                    int ind = data(j - 2) * 16 + data(j - 1) * 4 + data(j);
-                    sh = shift[ind];
-                    j += sh;
-                } 
-                
-                if (j < size) {
-                    int is_eq = 1;
-                    
-                    // SIMD comparison
-                    using simd_type = Kokkos::Experimental::simd<int8_t>;
-                    constexpr int simd_width = simd_type::size();
-                    const int cycles = len / simd_width;
-                    const int leftover = len % simd_width;
-                    
-                    for(int k = 0; k < cycles; ++k) {
-                        
-                        // Load data using gather operation
-                        Kokkos::Experimental::simd<int8_t> pattern1, pattern2;
-                        pattern1.copy_from(&data(i + k * simd_width), Kokkos::Experimental::element_aligned_tag());
-                        pattern2.copy_from(&data(j - len + 1 + k * simd_width), Kokkos::Experimental::element_aligned_tag());
-                        is_eq = Kokkos::Experimental::all_of(pattern1==pattern2);
-                        
-                        if (!is_eq) {
-                            break;
-                        }
-                    }
-                    
-                    // Handle leftover elements
-                    for(int k = 0; k < leftover && is_eq; ++k) {
-                        if (data(i + cycles * simd_width + k) != 
-                            data(j - len + 1 + cycles * simd_width + k)) {
-                            is_eq = 0;
-                            break;
-                        }
-                    }
-
-                    res += is_eq;
-                    j += sh1;
-                } else {
-                    break;
-                }
-            }
-            freq_view(i) = res;
+    h.parallel_for(M, [=](sycl::id<1> idx) {
+      size_t i = idx[0];
+      uint32_t res = 0;
+      int32_t shift[64];
+      for (int k = 0; k < 64; ++k) {
+        shift[k] = len_ - 2;
+      }
+      for (int j = 2; j < len_ - 1; ++j) {
+        int ind = data_acc[i + j - 2] * 16 + data_acc[i + j - 1] * 4 + data_acc[i + j];
+        shift[ind] = len_ - 1 - j;
+      }
+      int ind = data_acc[i + len_ - 3] * 16 + data_acc[i + len_ - 2] * 4 + data_acc[i + len_ - 1];
+      int sh1 = shift[ind];
+      shift[ind] = 0;
+      if (sh1 == 0) sh1 = 1;
+      int j = len_ - 1;
+      while (true) {
+        int sh = 1;
+        while (sh != 0 && j < N) {
+          ind = data_acc[j - 2] * 16 + data_acc[j - 1] * 4 + data_acc[j];
+          sh = shift[ind];
+          j += sh;
         }
-    );
-Kokkos::fence();
-    double stop = timer.seconds();
+        if (j < N) {
+          bool is_eq = true;
+          for (uint32_t k = 0; k < len_; ++k) {
+            if (data_acc[i + k] != data_acc[j - len_ + 1 + k]) {
+              is_eq = false;
+              break;
+            }
+          }
+          if (is_eq) ++res;
+          j += sh1;
+        } else {
+          break;
+        }
+      }
+      freq_acc[i] = res;
+    });
+  });
+  q.wait();
 
-    // Copy results back to host
-    auto freq_host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), freq_view);
-    for(int i = 0; i < size; ++i) {
-        freq[i] = freq_host(i);
-    }
-    
-    if (perf_collect) {
-        auto coll_host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), num_of_coll);
-        auto comp_host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), num_of_comp);
-        std::cout << "number of collisions = " << coll_host(0) << "\n";
-        std::cout << "number of comparasion = " << comp_host(0) << "\n";
-        std::cout << freq.size() << " " << len << " " << stop << "\n";
-    }
-}
-    Kokkos::finalize();
-    return;
+  auto stop = std::chrono::high_resolution_clock::now();
+  double elapsed = std::chrono::duration<double>(stop - start).count();
+
+  if (perf_collect) {
+    std::cout << N << " " << len_ << " " << elapsed << "\n";
+  }
 }

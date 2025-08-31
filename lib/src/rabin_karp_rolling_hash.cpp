@@ -1,120 +1,72 @@
-#include "algorithms.h"
-#include "common_defs.h"
-#include <Kokkos_Core.hpp>
-#include <Kokkos_SIMD.hpp>
+#include <sycl/sycl.hpp>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <chrono>
+#include <unordered_map>
 
-typedef Kokkos::Experimental::native_simd<uint64_t> vu64;
-typedef Kokkos::Experimental::native_simd<uint8_t> vu8;
+extern "C" void rabin_karp_rolling_hash(std::vector<uint32_t>& freq, const std::string& input_file, 
+                                                   const uint32_t len_, const bool perf_collect) {
+  std::ifstream fin(input_file);
+  std::string data_str;
+  fin >> data_str;
+  size_t N = data_str.size();
+  size_t M = N - len_ + 1;
+  freq.resize(N, 0);
 
-extern void rabin_karp_rolling_hash(std::vector<uint32_t>& freq, 
-                                  const std::string& input_file, 
-                                  const uint32_t len_, 
-                                  const bool perf_collect) {
-    // Initialize Kokkos
-    Kokkos::initialize();
-    {
-        Kokkos::Timer timer;
-    std::ifstream fin(input_file);
-    std::string data_;
-    fin >> data_;
-    uint64_t size = data_.size();
-    int len = len_;
+  std::vector<int8_t> data(N);
+  std::unordered_map<char, int8_t> symbols_code = {{'A', 0}, {'C', 1}, {'G', 2}, {'T', 3}};
+  for (size_t i = 0; i < N; ++i) {
+    data[i] = symbols_code[data_str[i]];
+  }
 
-    constexpr size_t VECTOR_LENGTH = vu8::size();
-    int32_t cycles = len / VECTOR_LENGTH;
-    int32_t leftover = len % VECTOR_LENGTH;
+  auto start = std::chrono::high_resolution_clock::now();
 
-    freq.resize(size, 0);
-    
-    // Prepare data
-    Kokkos::View<uint8_t*> data("data", size + len);
-    std::unordered_map<int8_t, int8_t> mapSymbToCode = {
-        {'A', (int8_t)0}, {'C', (int8_t)1}, {'G', (int8_t)2}, {'T', (int8_t)3}
-    };
+  sycl::queue q{sycl::cpu_selector_v};
 
-    // Initialize data on host
-    auto data_host = Kokkos::create_mirror_view(data);
-    for (int i = 0; i < size; ++i) {
-        data_host[i] = mapSymbToCode[data_[i]];
-    }
-    for (int i = size; i < size + len; ++i) {
-        data_host[i] = 7;
-    }
-    Kokkos::deep_copy(data, data_host);
+  sycl::buffer<int8_t> data_buf(data.data(), N);
+  sycl::buffer<uint32_t> freq_buf(freq.data(), N);
 
-    // Create Kokkos view for frequencies
-    Kokkos::View<uint32_t*> freq_view("freq_view", size);
-    
-    timer.reset();
+  q.submit([&](sycl::handler& h) {
+    auto data_acc = data_buf.get_access<sycl::access::mode::read>(h);
+    auto freq_acc = freq_buf.get_access<sycl::access::mode::write>(h);
 
-    // Parallel execution with Kokkos
-    Kokkos::parallel_for("rabin_karp", size - len + 1, KOKKOS_LAMBDA(const int i) {
-        int res = 0;
-        uint64_t hash_pattern = 0;
-        uint64_t hash_text = 0;
-        uint64_t p = 2;
-        uint64_t powmod = 1;
-        
-        // Compute initial hashes
-        for (int j = 0; j < len; ++j) {
-            hash_pattern = hash_pattern * p + data[i + j];
-            hash_text = hash_text * p + data[j];
-            powmod = powmod * p;
-        }
-        
-        // Search for matches
-        for (int j = 0; j < size - len + 1; ++j) {
-            if (hash_text == hash_pattern) {
-                int is_eq = 1;
-                
-                // Vectorized comparison
-                for (int k = 0; k < cycles && is_eq; ++k) {
-                    vu8 vpattern_1(&data[i + k * VECTOR_LENGTH], Kokkos::Experimental::element_aligned_tag{});
-                    vu8 vpattern_2(&data[j + k * VECTOR_LENGTH], Kokkos::Experimental::element_aligned_tag{});
-                    
-                    is_eq = Kokkos::Experimental::all_of(vpattern_1 == vpattern_2);
-                    if (is_eq == 0) {
-                        break;
-                    }
-                }
-                
-                // Leftover elements
-                for (int k = 0; k < leftover && is_eq; ++k) {
-                    if (data[i + cycles * VECTOR_LENGTH + k] != 
-                        data[j + cycles * VECTOR_LENGTH + k]) {
-                        is_eq = 0;
-                        break;
-                    }
-                }
-                
-                res += is_eq;
+    h.parallel_for(M, [=](sycl::id<1> idx) {
+      size_t i = idx[0];
+      uint32_t res = 0;
+      uint64_t hash_pattern = 0;
+      uint64_t hash_text = 0;
+      uint64_t p = 2;
+      uint64_t powmod = 1;
+      for (uint32_t j = 0; j < len_; ++j) {
+        hash_pattern = hash_pattern * p + data_acc[i + j];
+        hash_text = hash_text * p + data_acc[j];
+        powmod *= p;
+      }
+      for (size_t j = 0; j < M; ++j) {
+        if (hash_text == hash_pattern) {
+          bool is_eq = true;
+          for (uint32_t k = 0; k < len_; ++k) {
+            if (data_acc[i + k] != data_acc[j + k]) {
+              is_eq = false;
+              break;
             }
-            
-            // Update rolling hash
-            if (j < size - len) {
-                hash_text = (hash_text * p - data[j] * powmod + data[j + len]);
-            }
+          }
+          if (is_eq) ++res;
         }
-        
-        freq_view[i] = res;
+        if (j < M - 1) {
+          hash_text = hash_text * p - data_acc[j] * powmod + data_acc[j + len_];
+        }
+      }
+      freq_acc[i] = res;
     });
-    
-    Kokkos::fence();
-    double stop = timer.seconds();
-    
-    // Copy results back to host
-    auto freq_host = Kokkos::create_mirror_view(freq_view);
-    Kokkos::deep_copy(freq_host, freq_view);
-    
-    // Copy to output vector
-    for (int i = 0; i < size; ++i) {
-        freq[i] = freq_host[i];
-    }
-    
-    if (perf_collect) {
-        std::cout << freq.size() << " " << len << " " << stop << "\n";
-    }
-}
-    Kokkos::finalize();
-    return;
+  });
+  q.wait();
+
+  auto stop = std::chrono::high_resolution_clock::now();
+  double elapsed = std::chrono::duration<double>(stop - start).count();
+
+  if (perf_collect) {
+    std::cout << N << " " << len_ << " " << elapsed << "\n";
+  }
 }

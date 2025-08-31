@@ -1,93 +1,58 @@
-#include "algorithms.h"
-#include "common_defs.h"
-#include <Kokkos_Core.hpp>
-#include <Kokkos_SIMD.hpp>
+#include <sycl/sycl.hpp>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <chrono>
+#include <unordered_map>
 
-typedef Kokkos::Experimental::native_simd<int8_t> vs8;
+extern "C" void naive(std::vector<uint32_t>& freq, const std::string& input_file, 
+                                 const uint32_t len_, const bool perf_collect) {
+  std::ifstream fin(input_file);
+  std::string data_str;
+  fin >> data_str;
+  size_t N = data_str.size();
+  size_t M = N - len_ + 1;
+  freq.resize(N, 0);
 
-extern void naive(std::vector<uint32_t>& freq, 
-                 const std::string& input_file, 
-                 const uint32_t len_, 
-                 const bool perf_collect) {
-    // Initialize Kokkos
-    Kokkos::initialize();
-{
-     Kokkos::Timer timer;
-    std::ifstream fin(input_file);
-    std::string data_;
-    fin >> data_;
-    size_t size = data_.size();
-    int len = len_;
+  std::vector<int8_t> data(N);
+  std::unordered_map<char, int8_t> symbols_code = {{'A', 0}, {'C', 1}, {'G', 2}, {'T', 3}};
+  for (size_t i = 0; i < N; ++i) {
+    data[i] = symbols_code[data_str[i]];
+  }
 
-    // Determine SIMD vector length
-    constexpr size_t VECTOR_LENGTH = vs8::size();
-    uint8_t cycles = len / VECTOR_LENGTH;
-    uint8_t leftover = len % VECTOR_LENGTH;
+  auto start = std::chrono::high_resolution_clock::now();
 
-    // Prepare symbol mapping
-    std::unordered_map<int8_t, int8_t> symbols_code {
-        {'A', int8_t(0)}, {'C', int8_t(1)}, {'G', int8_t(2)}, {'T', int8_t(3)}
-    };
+  sycl::queue q{sycl::cpu_selector_v};
 
-    // Create Kokkos views
-    Kokkos::View<int8_t*> data("data", size);
-    for(int i = 0; i < size; ++i) {
-        data(i) = symbols_code[data_[i]];
-    }
+  sycl::buffer<int8_t> data_buf(data.data(), N);
+  sycl::buffer<uint32_t> freq_buf(freq.data(), N);
 
-    Kokkos::View<uint32_t*> freq_view("freq_view", size);
+  q.submit([&](sycl::handler& h) {
+    auto data_acc = data_buf.get_access<sycl::access::mode::read>(h);
+    auto freq_acc = freq_buf.get_access<sycl::access::mode::write>(h);
 
-    timer.reset();
-
-    // Parallel execution with Kokkos
-    Kokkos::parallel_for("naive_string_match", size - len + 1, KOKKOS_LAMBDA(const int i) {
-        uint32_t res = 0;
-        
-        for (int j = 0; j < size - len + 1; ++j) {
-            int is_eq = 1;
-            
-            // Vectorized comparison
-            for (int k = 0; k < cycles && is_eq; ++k) {
-                vs8 vpattern_1(&data(i + k * VECTOR_LENGTH), Kokkos::Experimental::element_aligned_tag());
-                vs8 vpattern_2(&data(j + k * VECTOR_LENGTH), Kokkos::Experimental::element_aligned_tag());
-                
-                 is_eq = Kokkos::Experimental::all_of(vpattern_1 == vpattern_2);
-                    if (is_eq == 0) {
-                        break;
-                    }
-            }
-            
-            // Leftover elements
-            for (int k = 0; k < leftover && is_eq; ++k) {
-                if (data[i + cycles * VECTOR_LENGTH + k] != 
-                    data[j + cycles * VECTOR_LENGTH + k]) {
-                    is_eq = 0;
-                    break;
-                }
-            }
-            
-            res += is_eq;
+    h.parallel_for(M, [=](sycl::id<1> idx) {
+      size_t i = idx[0];
+      uint32_t res = 0;
+      for (size_t j = 0; j < M; ++j) {
+        bool is_eq = true;
+        for (uint32_t k = 0; k < len_; ++k) {
+          if (data_acc[i + k] != data_acc[j + k]) {
+            is_eq = false;
+            break;
+          }
         }
-        
-        freq_view[i] = res;
+        if (is_eq) ++res;
+      }
+      freq_acc[i] = res;
     });
+  });
+  q.wait();
 
-    Kokkos::fence();
-    double stop = timer.seconds();
+  auto stop = std::chrono::high_resolution_clock::now();
+  double elapsed = std::chrono::duration<double>(stop - start).count();
 
-    // Copy results back to host
-    freq.resize(size);
-    auto freq_host = Kokkos::create_mirror_view(freq_view);
-    Kokkos::deep_copy(freq_host, freq_view);
-    
-    for (size_t i = 0; i < size; ++i) {
-        freq[i] = freq_host[i];
-    }
-
-    if (perf_collect) {
-        std::cout << freq.size() << " " << len << " " << stop << "\n";
-    }
-}
-    Kokkos::finalize();
-    return;
+  if (perf_collect) {
+    std::cout << N << " " << len_ << " " << elapsed << "\n";
+  }
 }

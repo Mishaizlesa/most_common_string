@@ -9,35 +9,35 @@ public:
     
 };
 
-/*TEST_F(Algo, test_naive_scalar)
+TEST_F(Algo, test_naive)
 {
     uint32_t lenght = rand()%1020 + 4;
-    naive_scalar(freq1, path, lenght,false);
+    naive(freq1, path, lenght,false);
     base_naive(freq2, path, lenght);
     EXPECT_EQ(freq1,freq2);
 }
 
-TEST_F(Algo, test_hash3_scalar)
+TEST_F(Algo, test_hash3)
 {
     uint32_t lenght = rand()%1020 + 4;
     
-    hash3_scalar(freq1, path, lenght,false);
+    hash3(freq1, path, lenght,false);
     base_naive(freq2, path, lenght);
     EXPECT_EQ(freq1,freq2);
 }
 
-TEST_F(Algo, test_rabin_karp_rolling_hash_scalar)
+TEST_F(Algo, test_rabin_karp_rolling_hash)
 {
     uint32_t lenght = rand()%100 + 10;
-    rabin_karp_rolling_hash_scalar(freq1, path, lenght,false);
+    rabin_karp_rolling_hash(freq1, path, lenght,false);
     base_naive(freq2, path, lenght);
     EXPECT_EQ(freq1,freq2);
-}*/
+}
 
-TEST_F(Algo, test_rabin_karp_SWAR_scalar)
+TEST_F(Algo, test_rabin_karp_SWAR)
 {
     uint32_t lenght = rand()%100 + 10;
-    rabin_karp_SWAR_scalar(freq1, path, lenght,false);
+    rabin_karp_SWAR(freq1, path, lenght,false);
     base_naive(freq2, path, lenght);
     EXPECT_EQ(freq1,freq2);
 }
