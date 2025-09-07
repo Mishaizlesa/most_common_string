@@ -9,7 +9,6 @@ extern void base_naive(std::vector<uint32_t>& freq ,const std::string& input_fil
     ll size=data_.size();
     int len=len_;
 
-
     std::unordered_map<char,char>symbols_code{{'A',char(0)}, {'C',char(1)},{'G',char(2)},{'T',char(3)}};
     freq.resize(size);
     char data[size];

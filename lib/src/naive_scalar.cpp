@@ -4,9 +4,10 @@
 #include <vector>
 #include <chrono>
 #include <unordered_map>
+#include "common_defs.h"
 
-extern "C" void rabin_karp_rolling_hash(std::vector<uint32_t>& freq, const std::string& input_file, 
-                                                   const uint32_t len_, const bool perf_collect) {
+extern "C" void naive_scalar(std::vector<uint32_t>& freq, const std::string& input_file, 
+                                 const uint32_t len_, const bool perf_collect) {
   std::ifstream fin(input_file);
   std::string data_str;
   fin >> data_str;
@@ -34,29 +35,15 @@ extern "C" void rabin_karp_rolling_hash(std::vector<uint32_t>& freq, const std::
     h.parallel_for(M, [=](sycl::id<1> idx) {
       size_t i = idx[0];
       uint32_t res = 0;
-      uint64_t hash_pattern = 0;
-      uint64_t hash_text = 0;
-      uint64_t p = 2;
-      uint64_t powmod = 1;
-      for (uint32_t j = 0; j < len_; ++j) {
-        hash_pattern = hash_pattern * p + data_acc[i + j];
-        hash_text = hash_text * p + data_acc[j];
-        powmod *= p;
-      }
       for (size_t j = 0; j < M; ++j) {
-        if (hash_text == hash_pattern) {
-          bool is_eq = true;
-          for (uint32_t k = 0; k < len_; ++k) {
-            if (data_acc[i + k] != data_acc[j + k]) {
-              is_eq = false;
-              break;
-            }
+        bool is_eq = true;
+        for (uint32_t k = 0; k < len_; ++k) {
+          if (data_acc[i + k] != data_acc[j + k]) {
+            is_eq = false;
+            break;
           }
-          if (is_eq) ++res;
         }
-        if (j < M - 1) {
-          hash_text = hash_text * p - data_acc[j] * powmod + data_acc[j + len_];
-        }
+        if (is_eq) ++res;
       }
       freq_acc[i] = res;
     });

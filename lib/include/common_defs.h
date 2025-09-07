@@ -1,19 +1,2 @@
-#ifndef COMMON_H
-#define COMMON_H
-
-#ifdef USE_OPENMP
-#include <omp.h>
-#endif
-
-#include <math.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <omp.h>
-#include <cstdio>
-#include <iostream>
-#include <string>
-#include <stdlib.h>
-#include <fstream>
-#include <vector>
-#include <unordered_map>
-#endif // COMMON_H
+const size_t VEC_LEN =  16; // SYCL supports vec sizes up to 64
+const size_t VEC_LEN_SWAR = 16; // Emulate SWAR by processing in chunks

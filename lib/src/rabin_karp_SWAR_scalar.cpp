@@ -5,8 +5,8 @@
 #include <chrono>
 #include <unordered_map>
 
-extern "C" void naive(std::vector<uint32_t>& freq, const std::string& input_file, 
-                                 const uint32_t len_, const bool perf_collect) {
+extern "C" void rabin_karp_SWAR_scalar(std::vector<uint32_t>& freq, const std::string& input_file, 
+                                            const uint32_t len_, const bool perf_collect) {
   std::ifstream fin(input_file);
   std::string data_str;
   fin >> data_str;
@@ -34,15 +34,21 @@ extern "C" void naive(std::vector<uint32_t>& freq, const std::string& input_file
     h.parallel_for(M, [=](sycl::id<1> idx) {
       size_t i = idx[0];
       uint32_t res = 0;
+      int8_t p1 = data_acc[i];
+      int8_t p2 = data_acc[i + 1];
+      int8_t pn2 = data_acc[i + len_ - 2];
+      int8_t pn1 = data_acc[i + len_ - 1];
       for (size_t j = 0; j < M; ++j) {
-        bool is_eq = true;
-        for (uint32_t k = 0; k < len_; ++k) {
-          if (data_acc[i + k] != data_acc[j + k]) {
-            is_eq = false;
-            break;
+        if (data_acc[j] == p1 && data_acc[j + 1] == p2 && data_acc[j + len_ - 2] == pn2 && data_acc[j + len_ - 1] == pn1) {
+          bool is_eq = true;
+          for (uint32_t k = 0; k < len_; ++k) {
+            if (data_acc[i + k] != data_acc[j + k]) {
+              is_eq = false;
+              break;
+            }
           }
+          if (is_eq) ++res;
         }
-        if (is_eq) ++res;
       }
       freq_acc[i] = res;
     });

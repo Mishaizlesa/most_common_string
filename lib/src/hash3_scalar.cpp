@@ -4,8 +4,9 @@
 #include <vector>
 #include <chrono>
 #include <unordered_map>
+#include "common_defs.h"
 
-extern "C" void hash3(std::vector<uint32_t>& freq, const std::string& input_file, 
+extern "C" void hash3_scalar(std::vector<uint32_t>& freq, const std::string& input_file, 
                                   const uint32_t len_, const bool perf_collect) {
   std::ifstream fin(input_file);
   std::string data_str;

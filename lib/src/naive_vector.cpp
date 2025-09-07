@@ -4,9 +4,10 @@
 #include <vector>
 #include <chrono>
 #include <unordered_map>
+#include "common_defs.h"
 
-extern "C" void rabin_karp_SWAR(std::vector<uint32_t>& freq, const std::string& input_file, 
-                                            const uint32_t len_, const bool perf_collect) {
+extern "C" void naive_vector(std::vector<uint32_t>& freq, const std::string& input_file, 
+                            const uint32_t len_, const bool perf_collect) {
   std::ifstream fin(input_file);
   std::string data_str;
   fin >> data_str;
@@ -34,21 +35,29 @@ extern "C" void rabin_karp_SWAR(std::vector<uint32_t>& freq, const std::string& 
     h.parallel_for(M, [=](sycl::id<1> idx) {
       size_t i = idx[0];
       uint32_t res = 0;
-      int8_t p1 = data_acc[i];
-      int8_t p2 = data_acc[i + 1];
-      int8_t pn2 = data_acc[i + len_ - 2];
-      int8_t pn1 = data_acc[i + len_ - 1];
+      size_t cycles = len_ / VEC_LEN;
+      size_t leftover = len_ % VEC_LEN;
+
       for (size_t j = 0; j < M; ++j) {
-        if (data_acc[j] == p1 && data_acc[j + 1] == p2 && data_acc[j + len_ - 2] == pn2 && data_acc[j + len_ - 1] == pn1) {
-          bool is_eq = true;
-          for (uint32_t k = 0; k < len_; ++k) {
-            if (data_acc[i + k] != data_acc[j + k]) {
-              is_eq = false;
-              break;
-            }
-          }
-          if (is_eq) ++res;
+        bool is_eq = true;
+        for (size_t k = 0; k < cycles && is_eq; ++k) {
+          sycl::vec<int8_t, VEC_LEN> pat, txt;
+          // Load data with offset and accessor
+          pat.load(k * VEC_LEN, &data_acc[i]);
+          txt.load(k * VEC_LEN, &data_acc[j]);
+          // Compare vectors
+          auto mask = (pat == txt);
+          // Check if all elements are equal
+          is_eq = sycl::all(mask); // Заменяем цикл проверки
+          if (!is_eq) break; // Ранний выход, если есть несовпадение
         }
+        // Handle leftover elements
+        for (size_t k = 0; k < leftover && is_eq; ++k) {
+          if (data_acc[i + cycles * VEC_LEN + k] != data_acc[j + cycles * VEC_LEN + k]) {
+            is_eq = false;
+          }
+        }
+        if (is_eq) ++res;
       }
       freq_acc[i] = res;
     });
