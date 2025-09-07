@@ -42,14 +42,12 @@ extern "C" void naive_vector(std::vector<uint32_t>& freq, const std::string& inp
         bool is_eq = true;
         for (size_t k = 0; k < cycles && is_eq; ++k) {
           sycl::vec<int8_t, VEC_LEN> pat, txt;
-          // Load data with offset and accessor
           pat.load(k * VEC_LEN, &data_acc[i]);
           txt.load(k * VEC_LEN, &data_acc[j]);
           // Compare vectors
           auto mask = (pat == txt);
-          // Check if all elements are equal
-          is_eq = sycl::all(mask); // Заменяем цикл проверки
-          if (!is_eq) break; // Ранний выход, если есть несовпадение
+          is_eq = sycl::all(mask);
+          if (!is_eq) break;
         }
         // Handle leftover elements
         for (size_t k = 0; k < leftover && is_eq; ++k) {

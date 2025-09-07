@@ -16,7 +16,6 @@ extern "C" void rabin_karp_rolling_hash_vector(std::vector<uint32_t>& freq, cons
 
     freq.resize(size, 0);
 
-    // Prepare data with mapping
     std::vector<uint8_t> data(size);
     std::unordered_map<char, uint8_t> mapSymbToCode = {{'A', 0}, {'C', 1}, {'G', 2}, {'T', 3}};
     
@@ -42,7 +41,6 @@ extern "C" void rabin_karp_rolling_hash_vector(std::vector<uint32_t>& freq, cons
                 uint64_t i = idx[0];
                 uint32_t res = 0;
                 
-                // Calculate pattern hash
                 uint64_t hash_pattern = 0;
                 uint64_t p = 2;
                 uint64_t powmod = 1;
@@ -52,32 +50,26 @@ extern "C" void rabin_karp_rolling_hash_vector(std::vector<uint32_t>& freq, cons
                     powmod = powmod * p;
                 }
                 
-                // Calculate initial text hash
                 uint64_t hash_text = 0;
                 for (int j = 0; j < len; ++j) {
                     hash_text = hash_text * p + data_acc[j];
                 }
                 
-                // Main comparison loop
                 for (int j = 0; j < size - len + 1; ++j) {
                     if (hash_text == hash_pattern) {
                         bool is_eq = true;
                         
-                        // Vectorized comparison
                         for (size_t k = 0; k < cycles && is_eq; ++k) {
                             const size_t offset1 = i + k * VEC_LEN;
                             const size_t offset2 = j + k * VEC_LEN;
                             
-                            // Load vectors using sycl::vec
                             sycl::vec<uint8_t, VEC_LEN> vec_pattern, vec_text;
                             
                             vec_pattern.load(0, &data_acc[offset1]);
                             vec_text.load(0, &data_acc[offset2]);
                             
-                            // Compare vectors
                             auto mask = (vec_pattern == vec_text);
                             
-                            // Check if all elements are equal
                             is_eq = sycl::all(mask);
                             if (!is_eq) break;
                         }
@@ -97,7 +89,6 @@ extern "C" void rabin_karp_rolling_hash_vector(std::vector<uint32_t>& freq, cons
                         }
                     }
                     
-                    // Update rolling hash for next position
                     if (j < size - len) {
                         hash_text = (hash_text * p - data_acc[j] * powmod + data_acc[j + len]);
                     }

@@ -17,48 +17,39 @@ extern "C" void rabin_karp_SWAR_vector(std::vector<uint32_t>& freq, const std::s
     int32_t leftover = len % VEC_LEN;
 
     freq.resize(size, 0);
-    std::vector<uint8_t> data(size + 65, 5); // Padding with 5 as in original
+    std::vector<uint8_t> data(size + 65, 5);
     std::unordered_map<char, int8_t> mapSymbToCode = {{'A', 0}, {'C', 1}, {'G', 2}, {'T', 3}};
 
-    // Prepare data
     for (size_t i = 0; i < size; ++i) {
         data[i] = mapSymbToCode[data_[i]];
     }
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // SYCL queue for execution (default selector for CPU/GPU)
     sycl::queue q(sycl::default_selector_v);
 
-    // Create SYCL buffers for data and freq
     sycl::buffer<uint8_t> data_buf(data.data(), sycl::range<1>(size + 65));
     sycl::buffer<uint32_t> freq_buf(freq.data(), sycl::range<1>(size));
 
-    // Submit parallel work
     q.submit([&](sycl::handler& cgh) {
         auto data_acc = data_buf.get_access<sycl::access::mode::read>(cgh);
         auto freq_acc = freq_buf.get_access<sycl::access::mode::write>(cgh);
 
-        // Define vector type for SIMD operations
         using vec16 = sycl::vec<uint8_t, 16>;
 
         cgh.parallel_for(sycl::range<1>(size - len + 1), [=](sycl::id<1> idx) {
             int i = idx[0];
             uint32_t res = 0;
 
-            // Load pattern symbols for comparison
             uint8_t pattern_first1 = data_acc[i];
             uint8_t pattern_first2 = data_acc[i + 1];
             uint8_t pattern_last1 = data_acc[i + len - 1];
             uint8_t pattern_last2 = data_acc[i + len - 2];
 
-            // Outer loop over text
             for (uint64_t j = 0; j < size - len + 1; j += VEC_LEN_SWAR) {
                 uint64_t bitmask = 0;
 
-                // Process SWAR-like comparison in chunks of VEC_LEN
                 for (uint64_t k = 0; k < VEC_LEN_SWAR; k += VEC_LEN) {
-                    // Load data manually into vec16
                     vec16 vfirst_sym1, vfirst_sym2, vlast_sym1, vlast_sym2;
                     uint8_t temp1[16], temp2[16], temp3[16], temp4[16];
                     for (int m = 0; m < 16; ++m) {
@@ -72,13 +63,11 @@ extern "C" void rabin_karp_SWAR_vector(std::vector<uint32_t>& freq, const std::s
                     vlast_sym1.load(0, temp3);
                     vlast_sym2.load(0, temp4);
 
-                    // Broadcast pattern values
                     vec16 vpattern_first1(pattern_first1);
                     vec16 vpattern_first2(pattern_first2);
                     vec16 vpattern_last1(pattern_last1);
                     vec16 vpattern_last2(pattern_last2);
 
-                    // Vectorized comparisons
                     vec16 eq_first1 = vfirst_sym1 ^ vpattern_first1;
                     vec16 eq_first2 = vfirst_sym2 ^ vpattern_first2;
                     vec16 eq_last1 = vlast_sym1 ^ vpattern_last1;
@@ -87,7 +76,6 @@ extern "C" void rabin_karp_SWAR_vector(std::vector<uint32_t>& freq, const std::s
                     vec16 veq_last = eq_last1 | eq_last2;
                     vec16 veq = veq_first | veq_last;
 
-                    // Generate bitmask for equal elements
                     for (int m = 0; m < 16; ++m) {
                         if (veq[m] == 0) {
                             bitmask |= (1ULL << (k + m));
@@ -95,14 +83,12 @@ extern "C" void rabin_karp_SWAR_vector(std::vector<uint32_t>& freq, const std::s
                     }
                 }
 
-                // Process each bit in the mask
                 for (uint64_t t = 0; t < VEC_LEN_SWAR; ++t) {
                     if (bitmask & (1ULL << t)) {
                         bool is_eq = true;
                         const uint8_t* pattern_1 = &data_acc[i];
                         const uint8_t* pattern_2 = &data_acc[j + t];
 
-                        // Vectorized comparison for cycles
                         for (int k = 0; k < cycles; ++k) {
                             vec16 vpattern_1, vpattern_2;
                             vpattern_1.load(0, &pattern_1[k * VEC_LEN]);
@@ -112,7 +98,6 @@ extern "C" void rabin_karp_SWAR_vector(std::vector<uint32_t>& freq, const std::s
                             if (!is_eq) break;
                         }
 
-                        // Handle leftover elements
                         for (int k = 0; k < leftover && is_eq; ++k) {
                             if (pattern_1[cycles * VEC_LEN + k] != pattern_2[cycles * VEC_LEN + k]) {
                                 is_eq = false;
@@ -126,7 +111,7 @@ extern "C" void rabin_karp_SWAR_vector(std::vector<uint32_t>& freq, const std::s
             }
             freq_acc[i] = res;
         });
-    }).wait(); // Wait for kernel completion
+    }).wait(); 
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count() / 1000000.0;
