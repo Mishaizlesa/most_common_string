@@ -6,7 +6,7 @@ int main() {
 
     for (int i=128;i<=128;i*=2){
 
-        rabin_karp_rolling_hash(freq, path, i, true);
+        rabin_karp_SWAR_vector(freq, path, i, true);
     }
 
     return 0;
