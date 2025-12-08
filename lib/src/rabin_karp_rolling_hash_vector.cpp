@@ -1,4 +1,4 @@
-#include <sycl/sycl.hpp>
+#include <CL/sycl.hpp>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -25,7 +25,7 @@ extern "C" void rabin_karp_rolling_hash_vector(std::vector<uint32_t>& freq, cons
 
     auto start = std::chrono::high_resolution_clock::now();
 
-        sycl::queue q(sycl::cpu_selector_v);
+        sycl::queue q(sycl::cpu_selector{});
         
         const size_t cycles = len / VEC_LEN;
         const size_t leftover = len % VEC_LEN;
@@ -64,9 +64,14 @@ extern "C" void rabin_karp_rolling_hash_vector(std::vector<uint32_t>& freq, cons
                             const size_t offset2 = j + k * VEC_LEN;
                             
                             sycl::vec<uint8_t, VEC_LEN> vec_pattern, vec_text;
+
+                            auto pat_multi_ptr = sycl::multi_ptr<const uint8_t, sycl::access::address_space::global_space>(&data_acc[offset1]);
+                            auto txt_multi_ptr = sycl::multi_ptr<const uint8_t, sycl::access::address_space::global_space>(&data_acc[offset2]);
+                            vec_pattern.load(0, pat_multi_ptr);
+                            vec_text.load(0, txt_multi_ptr);
                             
-                            vec_pattern.load(0, &data_acc[offset1]);
-                            vec_text.load(0, &data_acc[offset2]);
+                            //vec_text.load(0, &data_acc[offset2]);
+                            //vec_pattern.load(0, &data_acc[offset1]);
                             
                             auto mask = (vec_pattern == vec_text);
                             

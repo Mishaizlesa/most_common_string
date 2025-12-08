@@ -1,4 +1,4 @@
-#include <sycl/sycl.hpp>
+#include <CL/sycl.hpp>
 #include <vector>
 #include <string>
 #include <fstream>
@@ -26,7 +26,7 @@ extern "C" void rabin_karp_SWAR_vector(std::vector<uint32_t>& freq, const std::s
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    sycl::queue q(sycl::default_selector_v);
+    sycl::queue q(sycl::default_selector{});
 
     sycl::buffer<uint8_t> data_buf(data.data(), sycl::range<1>(size + 65));
     sycl::buffer<uint32_t> freq_buf(freq.data(), sycl::range<1>(size));
@@ -51,13 +51,10 @@ extern "C" void rabin_karp_SWAR_vector(std::vector<uint32_t>& freq, const std::s
 
                 for (uint64_t k = 0; k < VEC_LEN_SWAR; k += VEC_LEN) {
                     vec16 vfirst_sym1, vfirst_sym2, vlast_sym1, vlast_sym2;
-                    uint8_t temp1[16], temp2[16], temp3[16], temp4[16];
-                    for (int m = 0; m < 16; ++m) {
-                        temp1[m] = data_acc[j + k + m];
-                        temp2[m] = data_acc[j + k + 1 + m];
-                        temp3[m] = data_acc[j + k + len - 1 + m];
-                        temp4[m] = data_acc[j + k + len - 2 + m];
-                    }
+                    auto temp1 = sycl::multi_ptr<const uint8_t, sycl::access::address_space::global_space>(&data_acc[j + k]);
+                    auto temp2 = sycl::multi_ptr<const uint8_t, sycl::access::address_space::global_space>(&data_acc[j + k + 1]);
+                    auto temp3 = sycl::multi_ptr<const uint8_t, sycl::access::address_space::global_space>(&data_acc[j + k + len - 1]);
+                    auto temp4 = sycl::multi_ptr<const uint8_t, sycl::access::address_space::global_space>(&data_acc[j + k + len - 2]);
                     vfirst_sym1.load(0, temp1);
                     vfirst_sym2.load(0, temp2);
                     vlast_sym1.load(0, temp3);
@@ -91,8 +88,12 @@ extern "C" void rabin_karp_SWAR_vector(std::vector<uint32_t>& freq, const std::s
 
                         for (int k = 0; k < cycles; ++k) {
                             vec16 vpattern_1, vpattern_2;
-                            vpattern_1.load(0, &pattern_1[k * VEC_LEN]);
-                            vpattern_2.load(0, &pattern_2[k * VEC_LEN]);
+                            //vpattern_1.load(0, &pattern_1[k * VEC_LEN]);
+                            //vpattern_2.load(0, &pattern_2[k * VEC_LEN]);
+                            auto pat_multi_ptr = sycl::multi_ptr<const uint8_t, sycl::access::address_space::global_space>(&pattern_1[k * VEC_LEN]);
+                            auto txt_multi_ptr = sycl::multi_ptr<const uint8_t, sycl::access::address_space::global_space>(&pattern_2[k * VEC_LEN]);
+                            vpattern_1.load(0, pat_multi_ptr);
+                            vpattern_2.load(0, txt_multi_ptr);
                             auto eq_mask = (vpattern_1 == vpattern_2);
                             is_eq = sycl::all(eq_mask);
                             if (!is_eq) break;

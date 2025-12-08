@@ -1,4 +1,4 @@
-#include <sycl/sycl.hpp>
+#include <CL/sycl.hpp>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -22,17 +22,19 @@ extern "C" void rabin_karp_rolling_hash_scalar(std::vector<uint32_t>& freq, cons
 
   auto start = std::chrono::high_resolution_clock::now();
 
-  sycl::queue q{sycl::cpu_selector_v};
+  sycl::queue q{sycl::cpu_selector{}};
 
-  sycl::buffer<int8_t> data_buf(data.data(), N);
-  sycl::buffer<uint32_t> freq_buf(freq.data(), N);
+  sycl::buffer<int8_t> data_buf(data.data(), sycl::range<1>(N));
+  sycl::buffer<uint32_t> freq_buf(freq.data(), sycl::range<1>(N));
+
 
   q.submit([&](sycl::handler& h) {
     auto data_acc = data_buf.get_access<sycl::access::mode::read>(h);
     auto freq_acc = freq_buf.get_access<sycl::access::mode::write>(h);
 
-    h.parallel_for(M, [=](sycl::id<1> idx) {
-      size_t i = idx[0];
+    size_t wg_size = 128;
+    h.parallel_for(sycl::nd_range<1>{sycl::range<1>(M), sycl::range<1>(wg_size)}, [=](sycl::nd_item<1> item) {
+      size_t i = item.get_global_id(0);
       uint32_t res = 0;
       uint64_t hash_pattern = 0;
       uint64_t hash_text = 0;

@@ -1,4 +1,4 @@
-#include <sycl/sycl.hpp>
+#include <CL/sycl.hpp>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -31,8 +31,9 @@ extern "C" void rabin_karp_SWAR_scalar(std::vector<uint32_t>& freq, const std::s
     auto data_acc = data_buf.get_access<sycl::access::mode::read>(h);
     auto freq_acc = freq_buf.get_access<sycl::access::mode::write>(h);
 
-    h.parallel_for(M, [=](sycl::id<1> idx) {
-      size_t i = idx[0];
+    size_t wg_size = 128;
+    h.parallel_for(sycl::nd_range<1>{sycl::range<1>(M), sycl::range<1>(wg_size)}, [=](sycl::nd_item<1> item) {
+      size_t i = item.get_global_id(0);
       uint32_t res = 0;
       int8_t p1 = data_acc[i];
       int8_t p2 = data_acc[i + 1];

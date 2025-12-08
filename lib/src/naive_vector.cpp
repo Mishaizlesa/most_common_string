@@ -1,4 +1,4 @@
-#include <sycl/sycl.hpp>
+#include <CL/sycl.hpp>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -23,7 +23,7 @@ extern "C" void naive_vector(std::vector<uint32_t>& freq, const std::string& inp
 
   auto start = std::chrono::high_resolution_clock::now();
 
-  sycl::queue q{sycl::cpu_selector_v};
+  sycl::queue q{sycl::cpu_selector{}};
 
   sycl::buffer<int8_t> data_buf(data.data(), N);
   sycl::buffer<uint32_t> freq_buf(freq.data(), N);
@@ -42,8 +42,10 @@ extern "C" void naive_vector(std::vector<uint32_t>& freq, const std::string& inp
         bool is_eq = true;
         for (size_t k = 0; k < cycles && is_eq; ++k) {
           sycl::vec<int8_t, VEC_LEN> pat, txt;
-          pat.load(k * VEC_LEN, &data_acc[i]);
-          txt.load(k * VEC_LEN, &data_acc[j]);
+          auto pat_multi_ptr = sycl::multi_ptr<const int8_t, sycl::access::address_space::global_space>(&data_acc[k * VEC_LEN + i]);
+          auto txt_multi_ptr = sycl::multi_ptr<const int8_t, sycl::access::address_space::global_space>(&data_acc[j + k * VEC_LEN]);
+          pat.load(0, pat_multi_ptr);
+          txt.load(0, txt_multi_ptr);
           // Compare vectors
           auto mask = (pat == txt);
           is_eq = sycl::all(mask);

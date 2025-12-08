@@ -1,4 +1,4 @@
-#include <sycl/sycl.hpp>
+#include <CL/sycl.hpp>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -27,6 +27,9 @@ extern "C" void hash3_vector(std::vector<uint32_t>& freq, const std::string& inp
 
   sycl::buffer<int8_t> data_buf(data.data(), N);
   sycl::buffer<uint32_t> freq_buf(freq.data(), N);
+
+  sycl::device d = sycl::cpu_selector().select_device();
+  std::cout << d.get_info<sycl::info::device::max_compute_units>() << std::endl;
 
   q.submit([&](sycl::handler& h) {
     auto data_acc = data_buf.get_access<sycl::access::mode::read>(h);
@@ -61,8 +64,12 @@ extern "C" void hash3_vector(std::vector<uint32_t>& freq, const std::string& inp
           bool is_eq = true;
           for (size_t k = 0; k < cycles && is_eq; ++k) {
             sycl::vec<int8_t, VEC_LEN> pat, txt;
-            pat.load(k * VEC_LEN, &data_acc[i]);
-            txt.load(k * VEC_LEN, &data_acc[j - len_ + 1]);
+            //pat.load(k * VEC_LEN, &data_acc[i]);
+            //txt.load(k * VEC_LEN, &data_acc[j - len_ + 1]);
+            auto pat_multi_ptr = sycl::multi_ptr<const int8_t, sycl::access::address_space::global_space>(&data_acc[k * VEC_LEN + i]);
+            auto txt_multi_ptr = sycl::multi_ptr<const int8_t, sycl::access::address_space::global_space>(&data_acc[j - len_ + 1 + k * VEC_LEN]);
+            pat.load(0, pat_multi_ptr);
+            txt.load(0, txt_multi_ptr);
             auto mask = pat == txt;
             is_eq = sycl::all(mask);
             if (!is_eq) break;

@@ -1,4 +1,4 @@
-#include <sycl/sycl.hpp>
+#include <CL/sycl.hpp>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -21,19 +21,23 @@ extern "C" void hash3_scalar(std::vector<uint32_t>& freq, const std::string& inp
     data[i] = symbols_code[data_str[i]];
   }
 
-  auto start = std::chrono::high_resolution_clock::now();
-
-  sycl::queue q{sycl::cpu_selector_v};
+  sycl::queue q{sycl::cpu_selector{},
+                sycl::property_list{
+                  sycl::property::queue::in_order{}
+                }};
 
   sycl::buffer<int8_t> data_buf(data.data(), N);
   sycl::buffer<uint32_t> freq_buf(freq.data(), N);
+
+  auto start = std::chrono::high_resolution_clock::now();
 
   q.submit([&](sycl::handler& h) {
     auto data_acc = data_buf.get_access<sycl::access::mode::read>(h);
     auto freq_acc = freq_buf.get_access<sycl::access::mode::write>(h);
 
-    h.parallel_for(M, [=](sycl::id<1> idx) {
-      size_t i = idx[0];
+    size_t wg_size = 8;
+    h.parallel_for(sycl::nd_range<1>{sycl::range<1>(M), sycl::range<1>(wg_size)}, [=](sycl::nd_item<1> item) {
+      size_t i = item.get_global_id(0);
       uint32_t res = 0;
       int32_t shift[64];
       for (int k = 0; k < 64; ++k) {
